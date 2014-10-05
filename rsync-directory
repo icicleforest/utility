@@ -1,0 +1,136 @@
+#!/bin/bash
+ 
+_ping="/bin/ping"
+_rsync="/usr/bin/rsync -az -e ssh"
+ 
+ 
+show_usage()
+{
+  echo "Usge: $0 [-u user] [-d direcotory] -h host1,host2 ..." 1>&2
+  exit 1
+}
+ 
+ 
+check_host_alive()
+{
+  local _host=$1
+  if $_ping -c 2 $_host > /dev/null 2>&1
+  then
+    echo OK
+    return 0
+  else
+    echo NG
+    return 1
+  fi
+}
+ 
+ 
+sync_remotehost()
+{
+  local _host=$1
+  local _directory=$2
+ 
+  if [ -z "$_host" -o -z "$_directory" ]
+  then
+    echo NG
+    return 1
+  fi
+ 
+  local _directory_parent=$(dirname $_directory)"/"
+ 
+  echo "$_rsync $_directory ${_host}:${_directory_parent}"
+  $_rsync $_directory ${_host}:${_directory_parent}
+ 
+  echo OK
+ 
+  return 0
+}
+ 
+ 
+ 
+# MAIN PROCEDURE
+while getopts u:d:h: OPT
+do
+  case $OPT in
+    u) _user=$OPTARG
+    ;;
+ 
+    d) _directory=$OPTARG
+    ;;
+ 
+    h)
+    if [ -z "${_hosts}"]
+    then
+      _hosts=$OPTARG
+    else
+      _hosts=${_hosts}" $OPTARG"
+    fi
+    ;;
+ 
+    \?) show_usage
+    ;;
+  esac
+done
+ 
+ 
+if [ -z "${_hosts}" ]
+then
+  echo "ERR: No host is specified."
+  exit 255
+else
+  _hosts=$(echo "${_hosts}" | tr ',' ' ')
+fi
+ 
+ 
+if [ -z "${_directory}" ]
+then
+  echo "ERR: Target directory is not specified."
+  exit 255
+fi
+ 
+ 
+echo "INFO: Login user is $_user."
+echo "INFO: Synchronized directory is $_directory."
+echo "INFO: Target host list is $_hosts."
+ 
+ 
+_n_warnings=0
+for _host in ${_hosts}
+do
+ 
+  check_host_alive $_host > /dev/null 2>&1
+  _result=$?
+  if [ ! $_result = 0 ]
+  then
+    echo "WARN: Host $_host is unreachable and skipped."
+    ((_n_warnings = _n_warnings + 1))
+    continue
+  else
+    echo "INFO: Host $_host is OK."
+  fi
+ 
+  if [ ! -z "${_user}" ]
+  then
+    _host=${_user}"@"${_host}
+  fi
+  _message=$(sync_remotehost $_host $_directory)
+  _result=$?
+  if [ ! $_result = 0 ]
+  then
+    echo "WARN: Host $_host is not synchronized with."
+    ((_n_warnings = _n_warnings + 1))
+    continue
+  else
+    echo "INFO: Host $_host is synchronized."
+    echo "DEBUG: "
+    echo "$_message" | while read _line
+    do
+      echo "# $_line"
+    done
+  fi
+ 
+done
+ 
+ 
+echo "INFO: Process is done with ${_n_warnings} warning(s)."
+
