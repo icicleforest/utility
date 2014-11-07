@@ -1,0 +1,101 @@
+#!/bin/bash
+
+_dir_working="/home/"${USER}
+_hosts_allowed="localhost"
+
+
+
+get_hostname() {
+    echo $(hostname)
+    return $?
+}
+
+
+log_message() {
+    local _severity=$1 ; shift
+    local _message="$@"
+    local _date=$(date +"%Y-%m-%d %H:%M:%S")
+    echo "[${_date}] ${_severity}: ${_message}"
+    return 0
+}
+
+
+log_info_message() {
+    log_message "INFO" "$@"
+}
+
+
+log_warn_message() {
+    log_message "WARN" "$@"
+}
+
+
+log_err_message() {
+    log_message "ERR" "$@"
+}
+
+
+
+# MARK START TIME
+log_info_message "Process is started."
+
+
+# CHECK IF WORKING HOST IS CORRECT
+_hostname=$(get_hostname)
+_allowed="FALSE"
+for _host in $_hosts_allowed
+do
+    if [ -n "$_host" -a "$_host" = "$_hostname" ]
+    then
+        _allowed="TRUE"
+        break
+    fi
+done
+
+if [ ! "$_allowed" = "TRUE" ]
+then
+    log_err_message "Host ($_hostname) is not allowed to execute $0." 
+    exit 1
+fi
+
+
+# LIST ALL TARGET FILES
+cd "$_dir_working" > /dev/null 2>&1
+if [ ! "$?" = 0 ]
+then
+    log_err_message "Target directory ($_dir_working) is not found or under operative."
+    exit 1
+fi
+
+# NOTE: TARGET FILE IS PDF ONLY
+_files=$(find ./* -type f -perm 600 | egrep "\.pdf$")
+if [ -z "$_files" ]
+then
+    log_info_message "No target file is found." 
+    exit 0
+fi
+
+
+# CHANGE FILE PARMISSION
+for _file in $_files
+do
+    _state_before=$(ls -l $_file)
+    chmod 644 $_file > /dev/null 2>&1
+    if [ ! "$?" = 0 ]
+    then
+        log_err_message "Failed to change permission of $_file."
+        exit 1
+    fi
+
+    _state_after=$(ls -l $_file)
+    log_info_message "Target was changed (\"$_state_before\" => \"$_state_after\")." 
+done
+
+
+# MARK END TIME
+log_info_message "All processes are finished successfully."
+
+
+
+exit
+

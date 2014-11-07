@@ -1,0 +1,128 @@
+#!/bin/bash
+
+
+
+get_work_directory()
+{
+  echo "/var/tmp/ntp"
+  return 0
+}
+
+
+get_bin_filename()
+{
+  basename $0
+  return $?
+}
+
+
+get_log_filename()
+{
+  local _binname=$(get_bin_filename)
+  local _date=`date +%Y%m%d`
+  local _filename=${_binname}-${_date}.log
+
+  echo ${_filename}
+  return 0
+}
+
+
+get_command()
+{
+  echo "/usr/local/nagios/libexec/check_ntp -H localhost"
+  return 0
+}
+
+
+get_datetime()
+{
+  date +%Y%m%d-%H%M%S
+  return $?
+}
+
+
+sleep_ex()
+{
+  sleep 30
+  return $?
+}
+
+
+get_pid_filepath() {
+  local _pf=$(get_bin_filename)".pid"
+  local _wd=$(get_work_directory)
+
+  echo $_wd"/"$_pf
+}
+
+
+touch_pidfile()
+{
+  local _f=$(get_pid_filepath)
+  local _r=1
+  if [ -e $_f ]
+  then
+    echo "ERROR: Process may be existing. Program was aborted."
+    exit $_r
+  else
+    touch $_f
+    echo $$ > $_f
+    _r=0
+  fi
+
+  return $_r
+}
+
+
+check_pidfile()
+{
+  local _f=$(get_pid_filepath)
+  local _r=0
+
+  if [ -e $_f ]
+  then
+    echo "INFO: Pid file is existing."
+    _r=0
+  else
+    echo "INFO: Pid file is not existing."
+    _r=1
+  fi
+
+  return $_r
+}
+
+
+get_command_result()
+{
+  local _cmd=$(get_command)
+  $_cmd
+  return $?
+}
+
+
+
+touch_pidfile
+
+while :
+do
+  check_pidfile > /dev/null 2>&1
+  _result=$?
+
+  if [ ! $_result = 0 ]
+  then
+    break
+  fi
+
+  _log=$(get_work_directory)"/"$(get_log_filename)
+  _now=$(get_datetime)
+  _txt=$(get_command_result)
+
+  echo "# $_now" >> $_log
+  echo "$_txt" >> $_log
+  echo >> $_log
+
+  sleep_ex
+done
+
+echo END
+
