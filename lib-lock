@@ -1,0 +1,10 @@
+lock_by_name() {
+    local _name=$(basename "$0RT:78i
+
+
+
+    echo "${_name}"
+
+    return;
+}
+

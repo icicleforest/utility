@@ -1,0 +1,33 @@
+# function get_date
+#   Arguments: none
+#   Return: status code
+#   Output: YYYYmmdd
+get_date()
+{
+    date +%Y%m%d
+    return $?
+}
+
+
+
+# function get_time
+#   Arguments: none
+#   Return: status code
+#   Output: HHMMSS
+get_time()
+{
+    date +%H%M%S
+    return $?
+}
+
+
+# function get_datetime
+#   Arguments: none
+#   Return: status code
+#   Output: YYYYmmdd-HHMMSS
+get_datetime()
+{
+    date +%Y%m%d-%H%M%S
+    return $?
+}
+

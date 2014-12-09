@@ -1,0 +1,153 @@
+#!/bin/bash
+ 
+_ping="/bin/ping"
+_ftp="/usr/bin/ftp -An"
+_find="/bin/find"
+
+for __ in "$(dirname $0)/lib-"* ; do . "${__}" ; done
+
+
+
+show_usage()
+{
+    echo "Usge: $0 -u user -p password -d direcotory -h host1,host2..." 1>&2
+    exit 1
+}
+
+
+generate_ftp_connect_string()
+{
+    local _u="$1"
+    local _h="$2"
+    local _p="$3"
+
+    if [ -z "${_u}" -o -z "${_h}" -o -z "${_p}" ]
+    then
+        echo "bye"
+        return 1
+    fi
+
+    cat <<COMMAND
+open ${_h}
+user ${_u} ${_p}
+COMMAND
+    return $?
+}
+
+
+generate_ftp_disconnect_string()
+{
+    echo "bye"
+    return $?
+}
+
+
+generate_multi_string()
+{
+    local _command="$1" ; shift
+    local _string=""
+
+    if [ -z "${_command}" ]
+    then
+        return 1
+    fi
+
+
+    for _d in $@
+    do
+        _string="${_string}${_string:+\n}${_command} ${_d} $(basename ${_d})"
+    done
+
+    echo -e "${_string}"
+    return $?
+}
+
+
+generate_multi_mkdir_string()
+{
+    generate_multi_string "mkdir" "$@"
+    return $?
+}
+
+
+generate_multi_put_string()
+{
+    generate_multi_string "put" "$@"
+    return $?
+}
+
+
+
+# MAIN PROCESS
+while getopts u:p:d:h: OPT
+do
+    case "${OPT}" in
+    u)
+        _user="${OPTARG}"
+        ;;
+ 
+    d)
+        _directory="${OPTARG}"
+        ;;
+ 
+    h)
+        _hosts="${_hosts}${_hosts:+ }${OPTARG}"
+        ;;
+
+    p)
+        _password="${OPTARG}"
+        ;;
+ 
+    \?)
+        show_usage
+        ;;
+    esac
+done
+ 
+ 
+if [ -z "${_hosts}" ]
+then
+    log_err_message "No host is specified."
+    exit 255
+fi
+
+ 
+if [ -z "${_directory}" ]
+then
+    log_err_message "Target directory is not specified."
+    exit 255
+fi
+
+
+if [ -z "${_password}" ]
+then
+    log_err_message "Password is not set."
+    exit 255
+fi
+
+
+_hosts="${_hosts//,/ }"
+_user="${_user:-$USER}"
+
+log_info_message "Login user is ${_user}."
+log_info_message "Target directory is ${_directory}."
+log_info_message "Target host(s) is ${_hosts}."
+
+_n_warns=0
+for _host in ${_hosts}
+do
+    {
+        generate_ftp_connect_string "${_user}" "${_host}" "${_password}"
+        echo "ls"
+        for _f in $(find "${_directory}" -type f)
+        do
+            generate_multi_put_string "${_f}"
+        done
+        generate_ftp_disconnect_string
+    #
+    #} > >(${_ftp})
+done
+ 
+log_info_message "Process is finished with ${_n_warns} warning(s)."
+exit 0
+
