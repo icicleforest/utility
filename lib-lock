@@ -1,10 +1,17 @@
-lock_by_name() {
-    local _name=$(basename "$0RT:78i
-
-
+lock_by_name()
+{
+    local _name=$(basename $0)
 
     echo "${_name}"
 
-    return;
+    return $?
+}
+
+
+unlock_by_name()
+{
+    local _name=$(basename $0)
+
+    return $?
 }
 
