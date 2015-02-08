@@ -1,107 +1,169 @@
 #!/bin/bash
  
 __ping="/bin/ping"
-__ftp="/usr/bin/ftp -An"
-__find="/bin/find"
+__lftp="/usr/bin/lftp"
+__getopt="/usr/bin/getopt"
+
+
 
 for __ in "$(dirname $0)/lib-"* ; do . "${__}" ; done
 
 
 
+check_binary()
+{
+    [ -x "${__ping}" ] || return ${EXITCODE_ERROR}
+    [ -x "${__lftp}" ] || return ${EXITCODE_ERROR}
+    [ -x "${__getopt}" ] || return ${EXITCODE_ERROR}
+
+    return ${EXITCODE_NO_ERROR}
+}
+
+
 show_usage()
 {
-    echo "Usge: $0 -u user -p password -d direcotory -h host1,host2..." 1>&2
-    exit 1
+    cat <<TXT
+Usage: $0 -s source_description -d destination_description
+    Local Description: \${LOCAL_PATH}
+    Remote Description: \${REMOTE_USER}:\${REMOTE_PASSWORD}@\${REMOTE_HOST}:\${REMOTE_PORT}:\${REMOTE_PATH} 
+TXT
+    exit ${EXITCODE_WARNING}
 }
 
 
-generate_connect_string()
+generate_setting_command()
 {
-    local _u="$1"
-    local _h="$2"
-    local _p="$3"
+    cat <<CMD
+set ftp:passive-mode off
+set ftp:ssl-force on
+set ftp:ssl-allow on
+set ftp:ssl-protect-data on
+set ssl:verify-certificate off
+CMD
 
-    if [ -z "${_u}" -o -z "${_h}" -o -z "${_p}" ]
-    then
-        generate_disconnect_string
-        return 1
-    fi
+    return ${EXITCODE_NO_ERROR}
+}
 
-    cat <<COMMAND
-open ${_h}
-user ${_u} ${_p}
-COMMAND
+
+generate_connect_command()
+{
+    local _user="${1}"
+    local _pass="${2}"
+    local _host="${3}"
+    local _port="${4}"
+
+    [ -z "${_user}" ] && return ${EXITCODE_ERROR}
+    [ -z "${_pass}" ] && return ${EXITCODE_ERROR}
+    [ -z "${_host}" ] && return ${EXITCODE_ERROR}
+    [ -z "${_port}" ] && return ${EXITCODE_ERROR}
+
+    cat <<CMD
+open -u ${_user},${_pass} -p ${_port} ${_host}
+CMD
+
+    return ${EXITCODE_NO_ERROR}
+}
+
+
+generate_disconnect_command()
+{
+    cat <<CMD
+close
+CMD
+
+    return ${EXITCODE_NO_ERROR}
+}
+
+
+generate_end_command()
+{
+    cat <<CMD
+quit
+CMD
+
+    return ${EXITCODE_NO_ERROR}
+}
+
+
+_generate_simple_command()
+{
+    local _command="${1}"
+
+    [ -z "${_command}" ] && return ${EXITCODE_ERROR}
+
+    cat <<CMD
+${1}
+CMD
+
+    return ${EXITCODE_NO_ERROR}
+}
+
+
+generate_list_remote_command()
+{
+    _generate_simple_command "ls"
+
     return $?
 }
 
 
-generate_disconnect_string()
+_generate_mirror_command()
 {
-    echo "bye"
-    return $?
+    local _s="${1}"; shift
+
+    [ -z "${_s}" ] && return ${EXITCODE_ERROR}
+    [ -z "${_d}" ] && return ${EXITCODE_ERROR}
+
+    cat <<CMD
+mirror -a -e ${_o} --verbose=0 ${_s} ${_d}
+CMD
 }
 
 
-generate_multi_string()
+generate_mirror_local_command()
 {
-    local _command="$1"; shift
-    local _string=
+    #local _s_remote="${1}"
+    #local _d_local="${2}"
 
-    if [ -z "${_command}" ]
-    then
-        return 1
-    fi
+    _generate_mirror_command "${1}" "${2}" ""
 
-    for _target in $@
-    do
-        _string="${_string}${_string:+\n}${_command} ${_target} $(basename ${_target})"
-    done
-
-    echo -e "${_string}"
-    return $?
+    return ${?}
 }
 
 
-generate_multi_mkdir_string()
+generate_mirror_remote_command()
 {
-    generate_multi_string "mkdir" "$@"
-    return $?
+    #local _s_local="${1}"
+    #local _d_remote="${2}"
+
+    _generate_mirror_command "${1}" "${2}" "-R"
+
+    return ${?}
 }
 
 
-generate_multi_put_string()
-{
-    generate_multi_string "put" "$@"
-    return $?
-}
-
-
-list_files_in()
-{
-    local _directory="$1"
-
-    ${__find} "${_directory}" -type f
-    return $?
-}
-
-
-list_all_subdirectories_in()
-{
-    local _directory="$1"
-
-    ${__find} "${_directory}" -type d
-    return $?
-}
+show_usage
+exit
+#generate_setting_command
+#generate_connect_command
+#generate_list_remote_command
+#generate_mirror_local_command "~/testdir" "/tmp/"
+#generate_mirror_remote_command "/tmp/testdir" "~/"
+#generate_disconnect_command
+#generate_end_command
 
 
 
 # MAIN PROCESS
-_host=
-_user=
+check_binary || ( _result=$?; echo "Required binary file is not found."; exit ${_result} )
+
+_hostname=
+_username=
 _password=
-_directory_source=
-_directory_destination=
-while getopts h:u:p:s:d: OPT
+_portnum=
+_path_s_dir=
+_path_d_dir=
+while getopts s:d: OPT
 do
     case "${OPT}" in
     h)
