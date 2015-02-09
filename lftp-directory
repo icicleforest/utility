@@ -1,8 +1,6 @@
 #!/bin/bash
  
-__ping="/bin/ping"
 __lftp="/usr/bin/lftp"
-__getopt="/usr/bin/getopt"
 
 
 
@@ -12,9 +10,7 @@ for __ in "$(dirname $0)/lib-"* ; do . "${__}" ; done
 
 check_binary()
 {
-    [ -x "${__ping}" ] || return ${EXITCODE_ERROR}
     [ -x "${__lftp}" ] || return ${EXITCODE_ERROR}
-    [ -x "${__getopt}" ] || return ${EXITCODE_ERROR}
 
     return ${EXITCODE_NO_ERROR}
 }
@@ -25,7 +21,7 @@ show_usage()
     cat <<TXT
 Usage: $0 -s source_description -d destination_description
     Local Description: \${LOCAL_PATH}
-    Remote Description: \${REMOTE_USER}:\${REMOTE_PASSWORD}@\${REMOTE_HOST}:\${REMOTE_PORT}:\${REMOTE_PATH} 
+    Remote Description: [\${REMOTE_USER}[:\${REMOTE_PASSWORD}]@]\${REMOTE_HOST}[:\${REMOTE_PORT}]:[\${REMOTE_PATH}]
 TXT
     exit ${EXITCODE_WARNING}
 }
@@ -142,56 +138,76 @@ generate_mirror_remote_command()
 }
 
 
-show_usage
-exit
-#generate_setting_command
-#generate_connect_command
-#generate_list_remote_command
-#generate_mirror_local_command "~/testdir" "/tmp/"
-#generate_mirror_remote_command "/tmp/testdir" "~/"
-#generate_disconnect_command
-#generate_end_command
+#show_usage
 
+_desc_src=
+_desc_dst=
+while getopts s:d: OPT
+do
+    case "${OPT}" in
+    s)
+        _desc_src="${OPTARG}"
+        ;;
+    d)
+        _desc_dst="${OPTARG}"
+        ;;
+    esac
+done
+
+#echo "SRC_DESC = ${_desc_src}"
+#echo "DST_DESC = ${_desc_dst}"
+
+
+_username=
+_password=
+_hostname=
+_portnum=
+_path_src=
+_path_dst=
+_remote_to_local=
+
+if [[ "${_desc_src}" =~ ^(([^@:]*)(:([^@]*))?@)?([^:]*):?([^:]*)?:(.*) ]]
+then
+    _username="${BASH_REMATCH[2]}"
+    _password="${BASH_REMATCH[4]}"
+    _hostname="${BASH_REMATCH[5]}"
+    _portnum="${BASH_REMATCH[6]}"
+    _path_src="${BASH_REMATCH[7]}"
+    _remote_to_local="TRUE"
+    _path_dst="${_desc_dst}"
+elif [[ "${_desc_dst}" =~ ^(([^@:]*)(:([^@]*))?@)?([^:]*):?([^:]*)?:(.*) ]]
+then
+    _username="${BASH_REMATCH[2]}"
+    _password="${BASH_REMATCH[4]}"
+    _hostname="${BASH_REMATCH[5]}"
+    _portnum="${BASH_REMATCH[6]}"
+    _path_dst="${BASH_REMATCH[7]}"
+    _remote_to_local="FALSE"
+    _path_src="${_desc_src}"
+fi
+
+
+#echo "USERNAME = ${_username}"
+#echo "PASSWORD = ${_password}"
+#echo "HOSTNAME = ${_hostname}"
+#echo "PORT_NUM = ${_portnum}"
+#echo "SRC_PATH = ${_path_src}"
+#echo "DST_PATH = ${_path_dst}"
+#echo "IS_R_2_L = ${_remote_to_local}"
+
+
+generate_setting_command
+generate_connect_command "${_username}" "${_password}" "${_hostname}" "${_portnum}"
+generate_list_remote_command
+generate_disconnect_command
+generate_end_command
+
+exit
 
 
 # MAIN PROCESS
 check_binary || ( _result=$?; echo "Required binary file is not found."; exit ${_result} )
 
-_hostname=
-_username=
-_password=
-_portnum=
-_path_s_dir=
-_path_d_dir=
-while getopts s:d: OPT
-do
-    case "${OPT}" in
-    h)
-        _host="${OPTARG}"
-        ;;
-
-    u)
-        _user="${OPTARG}"
-        ;;
- 
-    s)
-        _directory_source="${OPTARG}"
-        ;;
-
-    d)
-        _directory_destination="${OPTARG}"
-        ;;
- 
-    p)
-        _password="${OPTARG}"
-        ;;
- 
-    \?)
-        show_usage
-        ;;
-    esac
-done
- 
  
 [ -z "${_host}" ] && log_err_message "No host is specified." && exit 255
 [ -z "${_directory_source}" ] && log_err_message "Source directory is not specified." && exit 255
