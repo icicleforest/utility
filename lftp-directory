@@ -260,6 +260,6 @@ if (
 then
     log_info_message "Mirroring is finished with no error." && exit ${EXITCODE_NO_ERROR}
 else
-    log_err_message "Mirroring is aboted with error(s)." && exit ${EXITCODE_ERORR}
+    log_err_message "Mirroring is aborted with error(s)." && exit ${EXITCODE_ERORR}
 fi
 
