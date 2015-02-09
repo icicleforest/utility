@@ -108,6 +108,8 @@ generate_list_remote_command()
 _generate_mirror_command()
 {
     local _s="${1}"; shift
+    local _d="${1}"; shift
+    local _o="${@}"
 
     [ -z "${_s}" ] && return ${EXITCODE_ERROR}
     [ -z "${_d}" ] && return ${EXITCODE_ERROR}
@@ -248,12 +250,19 @@ else
 fi
 
 
- 
 log_info_message "Mirroring is started."
+
 if (
     generate_setting_command
     generate_connect_command "${_username}" "${_password}" "${_hostname}" "${_portnum}"
     generate_list_remote_command
+
+    [ "${_remote_to_local}" = "TRUE" ] &&
+        generate_mirror_local_command "${_path_src}" "${_path_dst}"
+
+    [ "${_remote_to_local}" = "FALSE" ] &&
+        generate_mirror_remote_command "${_path_src}" "${_path_dst}"
+
     generate_disconnect_command
     generate_end_command
 ) | ${__lftp}
