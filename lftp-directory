@@ -1,6 +1,7 @@
 #!/bin/bash
  
 __lftp="/usr/bin/lftp"
+__whoami="/usr/bin/whoami"
 
 
 
@@ -11,6 +12,7 @@ for __ in "$(dirname $0)/lib-"* ; do . "${__}" ; done
 check_binary()
 {
     [ -x "${__lftp}" ] || return ${EXITCODE_ERROR}
+    [ -x "${__whoami}" ] || return ${EXITCODE_ERROR}
 
     return ${EXITCODE_NO_ERROR}
 }
@@ -138,10 +140,10 @@ generate_mirror_remote_command()
 }
 
 
-#show_usage
 
 _desc_src=
 _desc_dst=
+
 while getopts s:d: OPT
 do
     case "${OPT}" in
@@ -186,7 +188,6 @@ then
     _path_src="${_desc_src}"
 fi
 
-
 #echo "USERNAME = ${_username}"
 #echo "PASSWORD = ${_password}"
 #echo "HOSTNAME = ${_hostname}"
@@ -196,47 +197,69 @@ fi
 #echo "IS_R_2_L = ${_remote_to_local}"
 
 
-generate_setting_command
-generate_connect_command "${_username}" "${_password}" "${_hostname}" "${_portnum}"
-generate_list_remote_command
-generate_disconnect_command
-generate_end_command
-
-exit
-
 
 # MAIN PROCESS
 check_binary || ( _result=$?; echo "Required binary file is not found."; exit ${_result} )
 
+
+if [ -z "${_username}" ]
+then
+    _username=$(${__whoami})
+    log_info_message "Username is not specified, so current \"${_username}\" is used for login."
+else
+    log_info_message "Username \"${_username}\" is used for login."
+fi
+
+
+if [ -z "${_password}" ]
+then
+    log_err_message "Password is not specified." && exit ${EXITCODE_ERROR}
+fi
+
+
+if [ -z "${_hostname}" ]
+then
+    log_err_message "Hostname is not specified." && exit ${EXITCODE_ERROR}
+fi
+
+
+if [ -z "${_portnum}" ]
+then
+    log_info_message "Port number is not specified, so default is used."
+elif [[ ! "${_portnum}" =~ ^[0-9]{1,}$ ]]
+then
+    log_err_message "Specified port \"${_portnum}\" is not invalid." && exit ${EXITCODE_ERROR}
+else
+    log_info_message "Specified port \"${_portnum}\" is used."
+fi
+
+
+if [ "${_remote_to_local}" = "TRUE" ]
+then
+    log_info_message "Source directory is \"${_hostname}:${_path_src}\"."
+    log_info_message "Destination directory is \"localhost:${_path_dst}\"."
+elif [ "${_remote_to_local}" = "FALSE" ]
+then
+    log_info_message "Source directory is \"localhost:${_path_src}\"."
+    log_info_message "Destination directory is \"${_hostname}:${_path_dst}\"."
+else
+    log_err_message "Unknown error occured when parsing arguments."
+    exit ${EXITCODE_ERROR}
+fi
+
+
  
-[ -z "${_host}" ] && log_err_message "No host is specified." && exit 255
-[ -z "${_directory_source}" ] && log_err_message "Source directory is not specified." && exit 255
-[ -z "${_password}" ] && log_err_message "Password is not set." && exit 255
-
-_user="${_user:-$USER}"
-_directory_target="${_directory_target:-.}"
-
-log_info_message "Login user is ${_user}."
-log_info_message "Source directory is localhost:${_directory_source}."
-log_info_message "Destination directory is ${_host}:${_directory_destination}."
-
-
-_n_warns=0
-{
-    generate_connect_string "${_user}" "${_host}" "${_password}"
-
-    #generate_multi_put_string $(list_subdirectories_in "${_directory_source}")
-
-   # echo "ls"
-   # for _f in $(find "${_directory}" -type f)
-   # do
-   #     generate_multi_put_string "${_f}"
-   # done
-    generate_disconnect_string
-}
-#
-#} > >(${_ftp})
- 
-log_info_message "Process is finished with ${_n_warns} warning(s)."
-exit 0
+log_info_message "Mirroring is started."
+if (
+    generate_setting_command
+    generate_connect_command "${_username}" "${_password}" "${_hostname}" "${_portnum}"
+    generate_list_remote_command
+    generate_disconnect_command
+    generate_end_command
+) | ${__lftp}
+then
+    log_info_message "Mirroring is finished with no error." && exit ${EXITCODE_NO_ERROR}
+else
+    log_err_message "Mirroring is aboted with error(s)." && exit ${EXITCODE_ERORR}
+fi
 
