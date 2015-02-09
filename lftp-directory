@@ -1,0 +1,274 @@
+#!/bin/bash
+ 
+__lftp="/usr/bin/lftp"
+__whoami="/usr/bin/whoami"
+
+
+
+for __ in "$(dirname $0)/lib-"* ; do . "${__}" ; done
+
+
+
+check_binary()
+{
+    [ -x "${__lftp}" ] || return ${EXITCODE_ERROR}
+    [ -x "${__whoami}" ] || return ${EXITCODE_ERROR}
+
+    return ${EXITCODE_NO_ERROR}
+}
+
+
+show_usage()
+{
+    cat <<TXT
+Usage: $0 -s source_description -d destination_description
+    Local Description: \${LOCAL_PATH}
+    Remote Description: [\${REMOTE_USER}[:\${REMOTE_PASSWORD}]@]\${REMOTE_HOST}[:\${REMOTE_PORT}]:[\${REMOTE_PATH}]
+TXT
+    exit ${EXITCODE_WARNING}
+}
+
+
+generate_setting_command()
+{
+    cat <<CMD
+set ftp:passive-mode off
+set ftp:ssl-force on
+set ftp:ssl-allow on
+set ftp:ssl-protect-data on
+set ssl:verify-certificate off
+CMD
+
+    return ${EXITCODE_NO_ERROR}
+}
+
+
+generate_connect_command()
+{
+    local _user="${1}"
+    local _pass="${2}"
+    local _host="${3}"
+    local _port="${4}"
+
+    [ -z "${_user}" ] && return ${EXITCODE_ERROR}
+    [ -z "${_pass}" ] && return ${EXITCODE_ERROR}
+    [ -z "${_host}" ] && return ${EXITCODE_ERROR}
+    [ -z "${_port}" ] && return ${EXITCODE_ERROR}
+
+    cat <<CMD
+open -u ${_user},${_pass} -p ${_port} ${_host}
+CMD
+
+    return ${EXITCODE_NO_ERROR}
+}
+
+
+generate_disconnect_command()
+{
+    cat <<CMD
+close
+CMD
+
+    return ${EXITCODE_NO_ERROR}
+}
+
+
+generate_end_command()
+{
+    cat <<CMD
+quit
+CMD
+
+    return ${EXITCODE_NO_ERROR}
+}
+
+
+_generate_simple_command()
+{
+    local _command="${1}"
+
+    [ -z "${_command}" ] && return ${EXITCODE_ERROR}
+
+    cat <<CMD
+${1}
+CMD
+
+    return ${EXITCODE_NO_ERROR}
+}
+
+
+generate_list_remote_command()
+{
+    _generate_simple_command "ls"
+
+    return $?
+}
+
+
+_generate_mirror_command()
+{
+    local _s="${1}"; shift
+    local _d="${1}"; shift
+    local _o="${@}"
+
+    [ -z "${_s}" ] && return ${EXITCODE_ERROR}
+    [ -z "${_d}" ] && return ${EXITCODE_ERROR}
+
+    cat <<CMD
+mirror -a -e ${_o} --verbose=0 ${_s} ${_d}
+CMD
+}
+
+
+generate_mirror_local_command()
+{
+    #local _s_remote="${1}"
+    #local _d_local="${2}"
+
+    _generate_mirror_command "${1}" "${2}" ""
+
+    return ${?}
+}
+
+
+generate_mirror_remote_command()
+{
+    #local _s_local="${1}"
+    #local _d_remote="${2}"
+
+    _generate_mirror_command "${1}" "${2}" "-R"
+
+    return ${?}
+}
+
+
+
+_desc_src=
+_desc_dst=
+
+while getopts s:d: OPT
+do
+    case "${OPT}" in
+    s)
+        _desc_src="${OPTARG}"
+        ;;
+    d)
+        _desc_dst="${OPTARG}"
+        ;;
+    esac
+done
+
+#echo "SRC_DESC = ${_desc_src}"
+#echo "DST_DESC = ${_desc_dst}"
+
+
+_username=
+_password=
+_hostname=
+_portnum=
+_path_src=
+_path_dst=
+_remote_to_local=
+
+if [[ "${_desc_src}" =~ ^(([^@:]*)(:([^@]*))?@)?([^:]*):?([^:]*)?:(.*) ]]
+then
+    _username="${BASH_REMATCH[2]}"
+    _password="${BASH_REMATCH[4]}"
+    _hostname="${BASH_REMATCH[5]}"
+    _portnum="${BASH_REMATCH[6]}"
+    _path_src="${BASH_REMATCH[7]}"
+    _remote_to_local="TRUE"
+    _path_dst="${_desc_dst}"
+elif [[ "${_desc_dst}" =~ ^(([^@:]*)(:([^@]*))?@)?([^:]*):?([^:]*)?:(.*) ]]
+then
+    _username="${BASH_REMATCH[2]}"
+    _password="${BASH_REMATCH[4]}"
+    _hostname="${BASH_REMATCH[5]}"
+    _portnum="${BASH_REMATCH[6]}"
+    _path_dst="${BASH_REMATCH[7]}"
+    _remote_to_local="FALSE"
+    _path_src="${_desc_src}"
+fi
+
+#echo "USERNAME = ${_username}"
+#echo "PASSWORD = ${_password}"
+#echo "HOSTNAME = ${_hostname}"
+#echo "PORT_NUM = ${_portnum}"
+#echo "SRC_PATH = ${_path_src}"
+#echo "DST_PATH = ${_path_dst}"
+#echo "IS_R_2_L = ${_remote_to_local}"
+
+
+
+# MAIN PROCESS
+check_binary || ( _result=$?; echo "Required binary file is not found."; exit ${_result} )
+
+
+if [ -z "${_username}" ]
+then
+    _username=$(${__whoami})
+    log_info_message "Username is not specified, so current \"${_username}\" is used for login."
+else
+    log_info_message "Username \"${_username}\" is used for login."
+fi
+
+
+if [ -z "${_password}" ]
+then
+    log_err_message "Password is not specified." && exit ${EXITCODE_ERROR}
+fi
+
+
+if [ -z "${_hostname}" ]
+then
+    log_err_message "Hostname is not specified." && exit ${EXITCODE_ERROR}
+fi
+
+
+if [ -z "${_portnum}" ]
+then
+    log_info_message "Port number is not specified, so default is used."
+elif [[ ! "${_portnum}" =~ ^[0-9]{1,}$ ]]
+then
+    log_err_message "Specified port \"${_portnum}\" is not invalid." && exit ${EXITCODE_ERROR}
+else
+    log_info_message "Specified port \"${_portnum}\" is used."
+fi
+
+
+if [ "${_remote_to_local}" = "TRUE" ]
+then
+    log_info_message "Source directory is \"${_hostname}:${_path_src}\"."
+    log_info_message "Destination directory is \"localhost:${_path_dst}\"."
+elif [ "${_remote_to_local}" = "FALSE" ]
+then
+    log_info_message "Source directory is \"localhost:${_path_src}\"."
+    log_info_message "Destination directory is \"${_hostname}:${_path_dst}\"."
+else
+    log_err_message "Unknown error occured when parsing arguments."
+    exit ${EXITCODE_ERROR}
+fi
+
+
+log_info_message "Mirroring is started."
+
+if (
+    generate_setting_command
+    generate_connect_command "${_username}" "${_password}" "${_hostname}" "${_portnum}"
+    generate_list_remote_command
+
+    [ "${_remote_to_local}" = "TRUE" ] &&
+        generate_mirror_local_command "${_path_src}" "${_path_dst}"
+
+    [ "${_remote_to_local}" = "FALSE" ] &&
+        generate_mirror_remote_command "${_path_src}" "${_path_dst}"
+
+    generate_disconnect_command
+    generate_end_command
+) | ${__lftp}
+then
+    log_info_message "Mirroring is finished with no error." && exit ${EXITCODE_NO_ERROR}
+else
+    log_err_message "Mirroring is aborted with error(s)." && exit ${EXITCODE_ERORR}
+fi
+
