@@ -115,7 +115,7 @@ _generate_mirror_command()
     [ -z "${_d}" ] && return ${EXITCODE_ERROR}
 
     cat <<CMD
-mirror -a -e ${_o} --verbose=0 ${_s} ${_d}
+mirror -a -e ${_o} -L --verbose=0 ${_s} ${_d}
 CMD
 }
 
