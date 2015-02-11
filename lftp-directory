@@ -255,7 +255,7 @@ log_info_message "Mirroring is started."
 if (
     generate_setting_command
     generate_connect_command "${_username}" "${_password}" "${_hostname}" "${_portnum}"
-    generate_list_remote_command
+    #generate_list_remote_command
 
     [ "${_remote_to_local}" = "TRUE" ] &&
         generate_mirror_local_command "${_path_src}" "${_path_dst}"
