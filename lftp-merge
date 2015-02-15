@@ -1,0 +1,9 @@
+#!/bin/bash
+
+_path_lftp_tool_file="$(dirname $0)/lftp-tool"
+_options="${@}"
+
+
+[ -x "${_path_lftp_tool_file}" ] &&
+    exec "${_path_lftp_tool_file}" -m Merge "${_options}"
+

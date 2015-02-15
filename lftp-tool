@@ -5,7 +5,6 @@
 #   (hostname and path is done in main process, however
 #    option is done in function)
 # + implement debug function
-# + implement other function except mirror
 
 
 __lftp="/usr/bin/lftp"
@@ -53,14 +52,15 @@ exit_no_error()
 show_usage()
 {
     cat <<TXT
-Usage: ${0} -s source_description -d destination_description [ -o options_description ]
-    Local Description: \${LOCAL_PATH}
-    Remote Description: [\${REMOTE_USER}[:\${REMOTE_PASSWORD}]@]\${REMOTE_HOST}[:\${REMOTE_PORT}]:[\${REMOTE_PATH}]
-    Options Description: \${OPT_KEY}=\${OPT_VALUE}
-        PassiveMode=[on|off] (off is default)
-        ForceSSL=[on|off] (on is default)
-        AllowSSL=[on|off] (on is default)
-        VerifySSLCert=[on|off] (off is default)
+Usage: ${0} -s source_description -d destination_description -m mode_description [ -o options_description ]
+    Local Description:      \${LOCAL_PATH}
+    Remote Description:     [\${REMOTE_USER}[:\${REMOTE_PASSWORD}]@]\${REMOTE_HOST}[:\${REMOTE_PORT}]:[\${REMOTE_PATH}]
+    Mode Description:       {Get|Put|Mirror|Merge}
+    Options Description:    \${OPT_KEY}=\${OPT_VALUE}
+        PassiveMode={on|off} (off is default)
+        ForceSSL={on|off} (on is default)
+        AllowSSL={on|off} (on is default)
+        VerifySSLCert={on|off} (off is default)
 TXT
     exit ${EXITCODE_WARNING}
 }
@@ -170,6 +170,22 @@ generate_list_remote_command()
 {
     _generate_simple_command "ls"
 
+    return ${?}
+}
+
+
+generate_get_command()
+{
+    _generate_simple_command "get"
+
+    return ${?}
+}
+
+
+generate_put_command()
+{
+    _generate_simple_command "put"
+
     return $?
 }
 
@@ -184,8 +200,24 @@ _generate_mirror_command()
     [ -z "${_d}" ] && return ${EXITCODE_ERROR}
 
     cat <<CMD
-mirror -a -e ${_o} -L --verbose=0 ${_s} ${_d}
+mirror -a ${_o} --verbose=0 ${_s} ${_d}
 CMD
+}
+
+
+generate_merge_local_command()
+{
+    _generate_mirror_command "${1}" "${2}"
+
+    return ${?}
+}
+
+
+generate_merge_remote_command()
+{
+    _generate_mirror_command "${1}" "${2}" "-R"
+
+    return ${?}
 }
 
 
@@ -194,7 +226,7 @@ generate_mirror_local_command()
     #local _s_remote="${1}"
     #local _d_local="${2}"
 
-    _generate_mirror_command "${1}" "${2}" ""
+    _generate_mirror_command "${1}" "${2}" "-e"
 
     return ${?}
 }
@@ -205,7 +237,7 @@ generate_mirror_remote_command()
     #local _s_local="${1}"
     #local _d_remote="${2}"
 
-    _generate_mirror_command "${1}" "${2}" "-R"
+    _generate_mirror_command "${1}" "${2}" "-e -R"
 
     return ${?}
 }
@@ -224,9 +256,10 @@ generate_mirror_remote_command()
 
 _desc_src=
 _desc_dst=
+_desc_mod=
 _desc_opt=
 
-while getopts s:d:o: OPT
+while getopts s:d:m:o: OPT
 do
     case "${OPT}" in
     s)
@@ -235,14 +268,19 @@ do
     d)
         _desc_dst="${OPTARG}"
         ;;
+    m)
+        _desc_mod="${OPTARG}"
+        ;;
     o)
         _desc_opt="${OPTARG}${_desc_opt:+ }${_desc_opt}"
+        ;;
     esac
 done
 
 #echo "SRC_DESC = ${_desc_src}"
 #echo "DST_DESC = ${_desc_dst}"
 #echo "OPT_DESC = ${_desc_opt}"
+#echo "MOD_DESC = ${_desc_mod}"
 
 
 _username=
@@ -260,7 +298,7 @@ then
     _hostname="${BASH_REMATCH[5]}"
     _portnum="${BASH_REMATCH[6]}"
     _path_src="${BASH_REMATCH[7]}"
-    _remote_to_local="TRUE"
+    _remote_to_local="true"
     _path_dst="${_desc_dst}"
 elif [[ "${_desc_dst}" =~ ^(([^@:]*)(:([^@]*))?@)?([^:]*):?([^:]*)?:(.*) ]]
 then
@@ -269,7 +307,7 @@ then
     _hostname="${BASH_REMATCH[5]}"
     _portnum="${BASH_REMATCH[6]}"
     _path_dst="${BASH_REMATCH[7]}"
-    _remote_to_local="FALSE"
+    _remote_to_local="false"
     _path_src="${_desc_src}"
 fi
 
@@ -314,11 +352,11 @@ else
 fi
 
 
-if [ "${_remote_to_local}" = "TRUE" ]
+if [ "${_remote_to_local}" = "true" ]
 then
     log_info_message "Source directory is \"${_hostname}:${_path_src}\"."
     log_info_message "Destination directory is \"localhost:${_path_dst}\"."
-elif [ "${_remote_to_local}" = "FALSE" ]
+elif [ "${_remote_to_local}" = "false" ]
 then
     log_info_message "Source directory is \"localhost:${_path_src}\"."
     log_info_message "Destination directory is \"${_hostname}:${_path_dst}\"."
@@ -328,25 +366,41 @@ else
 fi
 
 
-log_info_message "Mirroring is started."
+_mode=
+if [[ "${_desc_mod,,}" =~ ^(get|put|merge|mirror)$ ]]
+then
+    _mode="${BASH_REMATCH[1]}"
+    log_info_message "Mode is \"${_mode}.\""
+else
+    log_err_message "Mode \"${_mode}\" is invalid."
+    exit_error
+fi
+
+
+log_info_message "Operation is started."
 
 if (
     generate_setting_command "${_desc_opt}"
     generate_connect_command "${_username}" "${_password}" "${_hostname}" "${_portnum}"
-    #generate_list_remote_command
 
-    [ "${_remote_to_local}" = "TRUE" ] &&
+    [ "${_mode}" = "mirror" -a "${_remote_to_local}" = "true" ] &&
         generate_mirror_local_command "${_path_src}" "${_path_dst}"
 
-    [ "${_remote_to_local}" = "FALSE" ] &&
+    [ "${_mode}" = "mirror" -a "${_remote_to_local}" = "false" ] &&
         generate_mirror_remote_command "${_path_src}" "${_path_dst}"
+
+    [ "${_mode}" = "merge" -a "${_remote_to_local}" = "true" ] &&
+        generate_merge_local_command "${_path_src}" "${_path_dst}"
+
+    [ "${_mode}" = "merge" -a "${_remote_to_local}" = "false" ] &&
+        generate_merge_remote_command "${_path_src}" "${_path_dst}"
 
     generate_disconnect_command
     generate_end_command
 ) | ${__lftp}
 then
-    log_info_message "Mirroring is finished with no error." && exit_no_error
+    log_info_message "Operation is finished with no error." && exit_no_error
 else
-    log_err_message "Mirroring is aborted with error(s)." && exit_error
+    log_err_message "Operation is aborted with error(s)." && exit_error
 fi
 
