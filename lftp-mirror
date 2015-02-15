@@ -5,5 +5,5 @@ _options="${@}"
 
 
 [ -x "${_path_lftp_tool_file}" ] &&
-    exec "${_path_lftp_tool_file}" -m Mirror "${_options}"
+    exec "${_path_lftp_tool_file}" -m Mirror ${_options}
 
