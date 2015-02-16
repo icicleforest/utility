@@ -55,7 +55,7 @@ show_usage()
 Usage: ${0} -s source_description -d destination_description -m mode_description [ -o options_description ]
     Local Description:      \${LOCAL_PATH}
     Remote Description:     [\${REMOTE_USER}[:\${REMOTE_PASSWORD}]@]\${REMOTE_HOST}[:\${REMOTE_PORT}]:[\${REMOTE_PATH}]
-    Mode Description:       {Get|Put|Mirror|Merge}
+    Mode Description:       {Copy|Mirror|Merge}
     Options Description:    \${OPT_KEY}=\${OPT_VALUE}
         PassiveMode={on|off} (off is default)
         ForceSSL={on|off} (on is default)
@@ -174,9 +174,28 @@ generate_list_remote_command()
 }
 
 
+_generate_file_command()
+{
+    local _c="${1}"; shift
+    local _s="${1}"; shift
+    local _d="${1}"; shift
+    local _o="${@}"
+
+    [[ "${_c,,}" =~ ^(get|put)$ ]] || return ${EXITCODE_ERROR}
+    [ -z "${_s}" ] && return ${EXITCODE_ERROR}
+    [ -z "${_d}" ] && return ${EXITCODE_ERROR}
+
+    cat <<CMD
+${_c,,} ${_s} -o ${_d} ${_o}
+CMD
+
+    return ${EXITCODE_NO_ERROR}
+}
+
+
 generate_get_command()
 {
-    _generate_simple_command "get"
+    _generate_file_command "get" "${1}" "${2}"
 
     return ${?}
 }
@@ -184,13 +203,13 @@ generate_get_command()
 
 generate_put_command()
 {
-    _generate_simple_command "put"
+    _generate_file_command "put" "${1}" "${2}"
 
     return $?
 }
 
 
-_generate_mirror_command()
+_generate_directory_command()
 {
     local _s="${1}"; shift
     local _d="${1}"; shift
@@ -202,12 +221,14 @@ _generate_mirror_command()
     cat <<CMD
 mirror -a ${_o} --verbose=0 ${_s} ${_d}
 CMD
+
+    return ${EXITCODE_NO_ERROR}
 }
 
 
 generate_merge_local_command()
 {
-    _generate_mirror_command "${1}" "${2}"
+    _generate_directory_command "${1}" "${2}"
 
     return ${?}
 }
@@ -215,7 +236,7 @@ generate_merge_local_command()
 
 generate_merge_remote_command()
 {
-    _generate_mirror_command "${1}" "${2}" "-R"
+    _generate_directory_command "${1}" "${2}" "-R"
 
     return ${?}
 }
@@ -226,7 +247,7 @@ generate_mirror_local_command()
     #local _s_remote="${1}"
     #local _d_local="${2}"
 
-    _generate_mirror_command "${1}" "${2}" "-e"
+    _generate_directory_command "${1}" "${2}" "-e"
 
     return ${?}
 }
@@ -237,7 +258,7 @@ generate_mirror_remote_command()
     #local _s_local="${1}"
     #local _d_remote="${2}"
 
-    _generate_mirror_command "${1}" "${2}" "-e -R"
+    _generate_directory_command "${1}" "${2}" "-e -R"
 
     return ${?}
 }
@@ -367,7 +388,7 @@ fi
 
 
 _mode=
-if [[ "${_desc_mod,,}" =~ ^(get|put|merge|mirror)$ ]]
+if [[ "${_desc_mod,,}" =~ ^(copy|merge|mirror)$ ]]
 then
     _mode="${BASH_REMATCH[1]}"
     log_info_message "Mode is \"${_mode}.\""
@@ -383,17 +404,33 @@ if (
     generate_setting_command "${_desc_opt}"
     generate_connect_command "${_username}" "${_password}" "${_hostname}" "${_portnum}"
 
-    [ "${_mode}" = "mirror" -a "${_remote_to_local}" = "true" ] &&
-        generate_mirror_local_command "${_path_src}" "${_path_dst}"
+    case "${_mode}/${_remote_to_local}" in
 
-    [ "${_mode}" = "mirror" -a "${_remote_to_local}" = "false" ] &&
-        generate_mirror_remote_command "${_path_src}" "${_path_dst}"
+        "mirror/true")
+            generate_mirror_local_command "${_path_src}" "${_path_dst}"
+            ;;
 
-    [ "${_mode}" = "merge" -a "${_remote_to_local}" = "true" ] &&
-        generate_merge_local_command "${_path_src}" "${_path_dst}"
+        "mirror/false")
+            generate_mirror_remote_command "${_path_src}" "${_path_dst}"
+            ;;
 
-    [ "${_mode}" = "merge" -a "${_remote_to_local}" = "false" ] &&
-        generate_merge_remote_command "${_path_src}" "${_path_dst}"
+        "merge/true")
+            generate_merge_local_command "${_path_src}" "${_path_dst}"
+            ;;
+
+        "merge/false")
+            generate_merge_remote_command "${_path_src}" "${_path_dst}"
+            ;;
+
+        "copy/true")
+            generate_get_command "${_path_src}" "${_path_dst}"
+            ;;
+
+        "copy/false")
+            generate_put_command "${_path_src}" "${_path_dst}"
+            ;;
+
+    esac
 
     generate_disconnect_command
     generate_end_command
