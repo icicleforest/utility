@@ -1,0 +1,40 @@
+[ -z "${___STDFUNC-shh}" ] && return
+___STDFUNC=
+
+
+
+# DEPENDENCY
+Include "../lib/const.shh"
+
+
+
+# DEFINITION
+IsDefined()
+{
+    [ -n "${1}" -a -n "${!1}" ]
+}
+
+
+IsTrue()
+{
+    IsDefined "${1}" && [ "${!1} = "${TRUE}" ]
+}
+
+
+IsFalse()
+{
+    IsDefined "${1}" && [ "${!1} = "${FALSE}" ]
+}
+
+
+Abort()
+{
+    exit ${RC_ERROR}
+}
+
+
+Exit()
+{
+    exit ${RC_NO_ERROR}
+}
+

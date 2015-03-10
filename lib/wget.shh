@@ -1,0 +1,52 @@
+[ -z "${___WGET-shh}" ] && return
+___WGET=
+
+
+
+### DEPENDENCY ###
+Include "../lib/const.shh"
+
+___wget_wget="/usr/bin/wget"
+___wget_egrep="/bin/egrep"
+
+[ ! -x "${___wget_wget}" ] && Abort
+[ ! -x "${___wget_egrep}" ] && Abort
+
+
+
+### DEFINITION ###
+WgetGetContentLength()
+{
+    local _url="${1}"
+
+    [ -z "${_url}" ] && Abort
+
+    local _length=$(
+        LANG=C ${___wget_wget} --spider "${_url}" 2>&1 | egrep -io '^Length:.*$'
+        )
+
+    if [[ "${_length,,}" =~ ^length:[^A-Za-z0-9]*(unspecified)[^A-Za-z0-9] ]]
+    then
+        echo "${BASH_REMATCH[1]}"
+    elif [[ "${_length,,}" =~ length:[^A-Za-z0-9]*([0-9]+)[^A-Za-z0-9]* ]]
+    then
+        echo "${BASH_REMATCH[1]}" 
+    else
+        return ${RC_ERROR}
+    fi
+
+    return ${RC_NO_ERROR}
+}
+
+
+
+WgetURLCheck()
+{
+    local _length=$(WgetGetContentLength "${1}")
+    echo "LENGTH = ${_length}"
+
+    [[ "${_length}" =~ ^[0-9]+$ ]] && return ${RC_NO_ERROR}
+    [ "${_length}" = "unspecified" ] && return ${RC_ERROR}
+    return ${RC_ERROR}
+}
+

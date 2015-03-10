@@ -1,0 +1,17 @@
+lock_by_name()
+{
+    local _name=$(basename $0)
+
+    echo "${_name}"
+
+    return $?
+}
+
+
+unlock_by_name()
+{
+    local _name=$(basename $0)
+
+    return $?
+}
+

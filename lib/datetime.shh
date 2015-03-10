@@ -1,0 +1,34 @@
+[ -z "${___DATETIME-shh}" ] && return
+___DATETIME=
+
+
+
+### DEPENDENCY ###
+Include "../lib/stdfunc.shh"
+
+___datetime_date=/bin/date
+[ ! -x "${___datetime_date}" ] && Abort
+
+
+
+### DEFINITION ###
+GetDate()
+{
+    ${___datetime_date} +%Y%m%d
+    return $?
+}
+
+
+GetTime()
+{
+    ${___datetime_date} +%H%M%S
+    return $?
+}
+
+
+GetDateTime()
+{
+    ${___datetime_date} +%Y%m%d-%H%M%S
+    return $?
+}
+
