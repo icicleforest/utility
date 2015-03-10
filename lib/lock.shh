@@ -1,0 +1,59 @@
+[ -z "${___LOCK-shh}" ] && exit
+___LOCK=
+
+
+
+### DEPENDENCY ###
+Include "../lib/const.shh"
+Include "../lib/stdutil.shh"
+
+___lock_mkdir="/bin/mkdir"
+___lock_rmdir="/bin/rmdir"
+___lock_tmpdir="/tmp"
+___lock_path=
+
+IsInstalled ___lock_mkdir || Abort
+IsInstalled ___lock_rmdir || Abort
+IsDirectory ___lock_tmpdir || Abort
+
+
+
+### DEFINITION ###
+GetLock()
+{
+    local _name_lock="${1-$(basename ${0})}"
+    
+    [ -n "${___lock_path}" ] && return ${RC_ERROR}
+    ___lock_path="${___lock_tmpdir}/${_name_lock}"
+
+    if ${___lock_mkdir} "${___lock_path}" >/dev/null 2>&1
+    then
+        return ${RC_NO_ERROR}
+    fi
+        
+    return ${RC_ERROR}
+}
+
+
+ReleaseLock()
+{
+    local _name_lock="${1-$(basename ${0})}"
+
+    [ -z "${___lock_path}" ] && return ${RC_ERROR}
+
+    if ${___lock_rmdir} "${___lock_path}" >/dev/null 2>&1
+    then
+        ___lock_path=
+        return ${RC_NO_ERROR}
+    fi
+        
+    return ${RC_ERROR}
+}
+
+
+CheckLocked()
+{
+    IsDirectory ___lock_path
+    return $?
+}
+

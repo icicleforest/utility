@@ -1,0 +1,127 @@
+[ -z "${___MAKE-shh}" ] && return
+___MAKE=
+
+
+
+### DEPENDENCY ###
+Include "../lib/const.shh"
+Include "../lib/stdfunc.shh"
+
+___make_make="/usr/bin/make"
+[ ! -x "${___make_make}" ] && Abort
+
+
+___make_status_enum="[mtiucd]"
+___make_status="mti"
+
+
+
+### DEFINITION ###
+_SetMakeStatus()
+{
+    local _key="${1}"
+    local _value="${2}"
+
+    IsDefined _key || return ${RC_ERROR}
+    IsDefined _value || return ${RC_ERROR}
+
+    [[ "${_key}" =~ ${___make_status_enum} ]] || return ${RC_ERROR}
+    [ "${#_key}" = 1 ] || return ${RC_ERROR}
+    [[ "${_value,,}" =~ (on|off|${TRUE}|${FALSE}) ]] || return ${RC_ERROR}
+
+    if [[ "${_value,,}" =~ (on|${TRUE}) ]]
+    then
+        ___make_status="${___make_status//${_key}/}${_key}"
+    elif [[ "${_value,,}" =~ (off|${FALSE}) ]]
+    then
+        ___make_status="${___make_status//${_key}/}"
+    fi
+
+    return ${RC_NO_ERROR}
+}
+
+
+_GetMakeStatus()
+{
+    echo "${___make_status}"
+    return ${RC_NO_ERROR}
+}
+
+
+SetMake()
+{
+    _SetMakeStatus "m" "${1}"
+
+    return ${?}
+}
+
+
+SetMakeTest()
+{
+    _SetMakeStatus "t" "${1}"
+
+    return ${?}
+}
+
+
+SetMakeDependency()
+{
+    _SetMakeStatus "d" "${1}"
+
+    return ${?}
+}
+
+
+SetMakeInstall()
+{
+    _SetMakeStatus "i" "${1}"
+
+    return ${?}
+}
+
+
+DoMake()
+{
+    if [[ "${___make_status,,}" =~ m ]]
+    then
+        ${___make_make} || return ${RC_ERROR}
+    fi
+
+    return ${RC_NO_ERROR}
+}
+
+
+DoMakeTest()
+{
+    if [[ "${___make_status,,}" =~ t ]]
+    then
+        ${___make_make} test || return ${RC_ERROR}
+    fi
+
+    return ${RC_NO_ERROR}
+}
+
+
+DoMakeDependency()
+{
+    _GetMakeStatus
+
+    if [[ "${___make_status,,}" =~ d ]]
+    then
+        ${___make_make} depend || return ${RC_ERROR}
+    fi
+
+    return ${RC_NO_ERROR}
+}
+
+
+DoMakeInstall()
+{
+    if [[ "${___make_status,,}" =~ i ]]
+    then
+        ${___make_make} install || return ${RC_ERROR}
+    fi
+
+    return ${RC_NO_ERROR}
+}
+

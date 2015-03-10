@@ -1,0 +1,57 @@
+__stat=/usr/bin/stat
+__code_error=255
+
+
+
+get_file_attribute() {
+    local _file=$1
+    local _attr=$2
+
+    if [ -z "${_file}" ]
+    then
+        return "${__code_error}"
+    elif [ ! -e "${_file}" ]
+    then
+        return "${__code_error}"
+    fi
+
+    if [ -z "${_file}" ]
+    then
+        return "${__code_error}"
+    elif [ ! "${_attr:0:1}" = "%" ]
+    then
+        return "${__code_error}"
+    fi
+
+    local _desc=$(${__stat} -c "${_attr}" "${_file}" 2>&1)
+    local _resu=$?
+
+    if [ "${_resu}" = 0 ]
+    then
+        echo "${_desc}"
+    fi
+
+    return "${_resu}"
+}
+
+
+
+get_file_permission() {
+    get_file_attribute "$1" %a
+    return $?
+}
+
+
+
+get_file_owner_gid() {
+    get_file_attribute "$1" %g
+    return $?
+}
+
+
+
+get_file_owner_uid() {
+    get_file_attribute "$1" %u
+    return $?
+}
+
