@@ -4,8 +4,7 @@ ___CONFIGURE=
 
 
 ### DEPENDENCY ###
-Include "../lib/const.shh"
-Include "../lib/stdfunc.shh"
+Include "../lib/std.shh"
 
 
 ___configure_bin_configure="./configure"
@@ -23,12 +22,12 @@ SetConfigureProgram()
 {
     local _prog="${1}"
 
-    if IsDefined _prog
+    if Std::IsDefined _prog
     then
         ___configure_bin_preferred="${_prog}"
     fi
 
-    return ${RC_NO_ERROR}
+    return ${Std__RC_NO_ERROR}
 }
 
 
@@ -36,20 +35,20 @@ SetConfigureOption()
 {
     local _opt="${@}"
 
-    if IsDefined _opt
+    if Std::IsDefined _opt
     then
         ___configure_str_option="${___configure_str_option}${___configure_str_option:+ }${_opt}"
-        return ${RC_NO_ERROR}
+        return ${Std__RC_NO_ERROR}
     fi
 
-    return ${RC_ERROR}
+    return ${Std__RC_ERROR}
 }
 
 
 GetConfigureOption()
 {
     echo "${___configure_str_option}"
-    return ${RC_NO_ERROR}
+    return ${Std__RC_NO_ERROR}
 }
 
 
@@ -64,11 +63,11 @@ DoConfigure()
         fi
     done
 
-    if IsDefined _file
+    if Std::IsDefined _file
     then
-        ${_file} "${___configure_str_option}" && return ${RC_NO_ERROR}
+        ${_file} "${___configure_str_option}" && return ${Std__RC_NO_ERROR}
     fi
 
-    return ${RC_ERROR}
+    return ${Std__RC_ERROR}
 }
 

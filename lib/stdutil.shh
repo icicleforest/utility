@@ -4,43 +4,42 @@ ___STDUTIL=
 
 
 ### DEPENDENCY ###
-Include "../lib/const.shh"
-Include "../lib/stdfunc.shh"
+Include "../lib/std.shh"
 
 
 
 ### DEFINITION ###
 IsInstalled()
 {
-    IsDefined "${1}" && [ -x "${!1}" ] && return ${RC_NO_ERROR}
-    return ${RC_ERROR}
+    Std::IsDefined "${1}" && [ -x "${!1}" ] && return ${Std__RC_NO_ERROR}
+    return ${Std__RC_ERROR}
 }
 
 
 IsDirectory()
 {
-    IsDefined "${1}" && [ -d "${!1}" ] && return ${RC_NO_ERROR}
-    return ${RC_ERROR}
+    Std::IsDefined "${1}" && [ -d "${!1}" ] && return ${Std__RC_NO_ERROR}
+    return ${Std__RC_ERROR}
 }
 
 
 IsSymlink()
 {
-    IsDefined "${1}" && [ -L "${!1}" ] && return ${RC_NO_ERROR}
-    return ${RC_ERROR}
+    Std::IsDefined "${1}" && [ -L "${!1}" ] && return ${Std__RC_NO_ERROR}
+    return ${Std__RC_ERROR}
 }
 
 
 IsFile()
 {
-    IsDefined "${1}" && [ -f "${!1}" ] && return ${RC_NO_ERROR}
-    return ${RC_ERROR}
+    Std::IsDefined "${1}" && [ -f "${!1}" ] && return ${Std__RC_NO_ERROR}
+    return ${Std__RC_ERROR}
 }
 
 
 IsExecutable()
 {
-    IsDefined "${1}" && [ -x "${!1}" ] && return ${RC_NO_ERROR}
-    return ${RC_ERROR}
+    Std::IsDefined "${1}" && [ -x "${!1}" ] && return ${Std__RC_NO_ERROR}
+    return ${Std__RC_ERROR}
 }
 
