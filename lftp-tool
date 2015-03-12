@@ -1,5 +1,10 @@
 #!/bin/bash
 
+Include()
+{
+        [ ! -z "${1}" ] && source "$(dirname ${0})/${1}" || exit
+}
+
 # TODO
 # + unify logic to parse arguments into parameters
 #   (hostname and path is done in main process, however
