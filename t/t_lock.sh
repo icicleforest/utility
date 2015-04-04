@@ -8,48 +8,46 @@ Include()
 
 
 # INCLUDE DEPENDENCY
-Include "../lib/datetime.shh"
-Include "../lib/logging.shh"
-Include "../lib/const.shh"
+Include "../lib/std.shh"
 Include "../lib/lock.shh"
 
 
 
 # MAIN PROCESS
-for i in 1 2
-do
+echo "### Empty check"
+Lock::Check && Std::Abort
+echo "Pass"
+
+echo "### Empty lock"
+Lock::Get || Std::Abort
+echo "Pass"
+
+echo "### Locked check"
+Lock::Check || Std::Abort
+echo "Pass"
+
+echo "### Locked release"
+Lock::Release || Std::Abort
+echo "Pass"
+
+echo "### Empty check"
+Lock::Check && Std::Abort
+echo "Pass"
+
+echo "### Empty release"
+Lock::Release && Std::Abort
+echo "Pass"
+
+echo "### Locked lock"
+Lock::Get
+Lock::Get && ( Lock::Release; Std::Abort )
+echo "Pass"
+
+Lock::Release
 
 
-if GetLock
-then
-    echo "Lock OK"
-else
-    echo "Lock NG"
-fi
-
-if CheckLocked
-then
-    echo "Locked"
-else
-    echo "Unlocked"
-fi
-
-if ReleaseLock
-then
-    echo "Unlock OK"
-else
-    echo "Unlock NG"
-fi
-
-if CheckLocked
-then
-    echo "Locked"
-else
-    echo "Unlocked"
-fi
-
-
-done
+echo "######"
+echo "Test OK"
 
 exit
 
