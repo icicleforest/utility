@@ -4,11 +4,10 @@ ___MAKE=
 
 
 ### DEPENDENCY ###
-Include "../lib/const.shh"
-Include "../lib/stdfunc.shh"
+Include "../lib/std.shh"
 
-___make_make="/usr/bin/make"
-[ ! -x "${___make_make}" ] && Abort
+___make_bin_make="/usr/bin/make"
+[ ! -x "${___make_bin_make}" ] && Std::Abort
 
 
 ___make_status_enum="[mtiucd]"
@@ -17,17 +16,17 @@ ___make_status="mti"
 
 
 ### DEFINITION ###
-_SetMakeStatus()
+Make::_SetStatus()
 {
     local _key="${1}"
     local _value="${2}"
 
-    IsDefined _key || return ${RC_ERROR}
-    IsDefined _value || return ${RC_ERROR}
+    Std::IsDefined _key || return ${Std__RC_ERROR}
+    Std::IsDefined _value || return ${Std__RC_ERROR}
 
-    [[ "${_key}" =~ ${___make_status_enum} ]] || return ${RC_ERROR}
-    [ "${#_key}" = 1 ] || return ${RC_ERROR}
-    [[ "${_value,,}" =~ (on|off|${TRUE}|${FALSE}) ]] || return ${RC_ERROR}
+    [[ "${_key}" =~ ${___make_status_enum} ]] || return ${Std__RC_ERROR}
+    [ "${#_key}" = 1 ] || return ${Std__RC_ERROR}
+    [[ "${_value,,}" =~ (on|off|${Std__TRUE}|${Std__FALSE}) ]] || return ${Std__RC_ERROR}
 
     if [[ "${_value,,}" =~ (on|${TRUE}) ]]
     then
@@ -37,91 +36,89 @@ _SetMakeStatus()
         ___make_status="${___make_status//${_key}/}"
     fi
 
-    return ${RC_NO_ERROR}
+    return ${Std__RC_NO_ERROR}
 }
 
 
-_GetMakeStatus()
+Make::_GetStatus()
 {
     echo "${___make_status}"
-    return ${RC_NO_ERROR}
+    return ${Std__RC_NO_ERROR}
 }
 
 
-SetMake()
+Make::Enable()
 {
-    _SetMakeStatus "m" "${1}"
+    Make::_SetStatus "m" "${1}"
 
     return ${?}
 }
 
 
-SetMakeTest()
+Make::EnableTest()
 {
-    _SetMakeStatus "t" "${1}"
+    Make::_SetStatus "t" "${1}"
 
     return ${?}
 }
 
 
-SetMakeDependency()
+Make::EnableDependency()
 {
-    _SetMakeStatus "d" "${1}"
+    Make::_SetStatus "d" "${1}"
 
     return ${?}
 }
 
 
-SetMakeInstall()
+Make::EnableInstall()
 {
-    _SetMakeStatus "i" "${1}"
+    Make::_SetStatus "i" "${1}"
 
     return ${?}
 }
 
 
-DoMake()
+Make::Do()
 {
     if [[ "${___make_status,,}" =~ m ]]
     then
-        ${___make_make} || return ${RC_ERROR}
+        ${___make_bin_make} || return ${Std__RC_ERROR}
     fi
 
-    return ${RC_NO_ERROR}
+    return ${Std__RC_NO_ERROR}
 }
 
 
-DoMakeTest()
+Make::DoTest()
 {
     if [[ "${___make_status,,}" =~ t ]]
     then
-        ${___make_make} test || return ${RC_ERROR}
+        ${___make_bin_make} test || return ${Std__RC_ERROR}
     fi
 
-    return ${RC_NO_ERROR}
+    return ${Std__RC_NO_ERROR}
 }
 
 
-DoMakeDependency()
+Make::DoDependency()
 {
-    _GetMakeStatus
-
     if [[ "${___make_status,,}" =~ d ]]
     then
-        ${___make_make} depend || return ${RC_ERROR}
+        ${___make_bin_make} depend || return ${Std__RC_ERROR}
     fi
 
-    return ${RC_NO_ERROR}
+    return ${Std__RC_NO_ERROR}
 }
 
 
-DoMakeInstall()
+Make::DoInstall()
 {
     if [[ "${___make_status,,}" =~ i ]]
     then
-        ${___make_make} install || return ${RC_ERROR}
+        ${___make_bin_make} install || return ${Std__RC_ERROR}
     fi
 
-    return ${RC_NO_ERROR}
+    return ${Std__RC_NO_ERROR}
 }
 

@@ -18,7 +18,7 @@ ___configure_str_option=""
 
 
 ### DEFINITION ###
-SetConfigureProgram()
+Configure::SetProgram()
 {
     local _prog="${1}"
 
@@ -31,7 +31,7 @@ SetConfigureProgram()
 }
 
 
-SetConfigureOption()
+Configure::SetOption()
 {
     local _opt="${@}"
 
@@ -45,14 +45,14 @@ SetConfigureOption()
 }
 
 
-GetConfigureOption()
+Configure::GetOption()
 {
     echo "${___configure_str_option}"
     return ${Std__RC_NO_ERROR}
 }
 
 
-DoConfigure()
+Configure::Do()
 {
     local _file=
     for _var in ___configure_bin_preferred ${!___configure_bin_c@} {!___configure_bin_C@}

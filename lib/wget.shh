@@ -8,8 +8,8 @@ Include "../lib/std.shh"
 
 ___wget_bin_wget="/usr/bin/wget"
 ___wget_bin_egerp="/bin/egerp"
-IsExecutableExisting ___wget_bin_wget || Std::Abort
-IsExecutableExisting ___wget_bin_egrep || Std::Abort
+Std::IsExecutableExisting ___wget_bin_wget || Std::Abort
+Std::IsExecutableExisting ___wget_bin_egrep || Std::Abort
 
 
 
@@ -27,13 +27,13 @@ Wget::GetContentLength()
     if [[ "${_length,,}" =~ ^length:[^A-Za-z0-9]*(unspecified)[^A-Za-z0-9] ]]
     then
         echo "${BASH_REMATCH[1]}"
-        return ${RC_NO_ERROR}
+        return ${Std__RC_NO_ERROR}
     elif [[ "${_length,,}" =~ length:[^A-Za-z0-9]*([0-9]+)[^A-Za-z0-9]* ]]
     then
         echo "${BASH_REMATCH[1]}" 
-        return ${RC_NO_ERROR}
+        return ${Std__RC_NO_ERROR}
     else
-        return ${RC_ERROR}
+        return ${Std__RC_ERROR}
     fi
 }
 
@@ -44,8 +44,8 @@ Wget::CheckUrl()
     local _length=$(Wget::GetContentLength "${1}")
     echo "LENGTH = ${_length}"
 
-    [[ "${_length}" =~ ^[0-9]+$ ]] && return ${RC_NO_ERROR}
-    [ "${_length}" = "unspecified" ] && return ${RC_ERROR}
-    return ${RC_ERROR}
+    [[ "${_length}" =~ ^[0-9]+$ ]] && return ${Std__RC_NO_ERROR}
+    [ "${_length}" = "unspecified" ] && return ${Std__RC_ERROR}
+    return ${Std__RC_ERROR}
 }
 
