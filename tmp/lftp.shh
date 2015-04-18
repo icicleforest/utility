@@ -1,0 +1,424 @@
+[ -z "${___LFTP-shh}" ] && return
+___LFTP=
+
+
+
+### DEPENDENCY ###
+Include "../lib/std.shh"
+
+___lftp_bin_lftp="/usr/bin/lftp"
+___lftp_bin_whoami="/usr/bin/whoami"
+
+
+for _b in ${___lftp_bin_@}
+do
+    Std::IsExecutableExisting "${!_b}" || Std::Abort
+done
+
+
+___lftp_opt_passive="${Std__FALSE}"
+___lftp_opt_ssl_force="${Std__TRUE}"
+___lftp_opt_ssl_allow="${Std__TRUE}"
+___lftp_opt_ssl_verify="${Std__FALSE}"
+
+
+
+### DEFINITION ###
+Lftp::_SetOption()
+{
+    local _option="${1}"
+
+    if [[ "${_option}" =~ ^([^=]+)=([^=]+)$ ]]
+    then
+        local _k="${BASH_REMATCH[1]}"
+        local _v="${BASH_REMATCH[2]}"
+
+        [ "${_k,,}" = "passive_mode" ] && [[ "${_v,,}" =~ ^(on|off)$ ]] &&
+            _passive_mode="${BASH_REMATCH[1]}"
+
+        [ "${_k,,}" = "force_ssl" ] && [[ "${_v,,}" =~ ^(on|off)$ ]] &&
+            _force_ssl="${BASH_REMATCH[1]}"
+                
+        [ "${_k,,}" = "allow_ssl" ] && [[ "${_v,,}" =~ ^(on|off)$ ]] &&
+            _allow_ssl="${BASH_REMATCH[1]}"
+
+        [ "${_k,,}" = "verify_ssl_cert" ] && [[ "${_v,,}" =~ ^(on|off)$ ]] &&
+            _verify_ssl_cert="${BASH_REMATCH[1]}"
+    fi
+}
+
+generate_setting_command()
+{
+    local _opts="${@}"
+
+    local _passive_mode="off"
+    local _force_ssl="on"
+    local _allow_ssl="on"
+    local _verify_ssl_cert="off"
+
+    for _opt in ${_opts}
+    do
+        if [[ "${_opt}" =~ ^([^=]+)=([^=]+)$ ]]
+        then
+            local _k="${BASH_REMATCH[1]}"
+            local _v="${BASH_REMATCH[2]}"
+
+            [ "${_k,,}" = "passivemode" ] && [[ "${_v,,}" =~ ^(on|off)$ ]] &&
+                _passive_mode="${BASH_REMATCH[1]}"
+
+            [ "${_k,,}" = "forcessl" ] && [[ "${_v,,}" =~ ^(on|off)$ ]] &&
+                _force_ssl="${BASH_REMATCH[1]}"
+                    
+            [ "${_k,,}" = "allowssl" ] && [[ "${_v,,}" =~ ^(on|off)$ ]] &&
+                _allow_ssl="${BASH_REMATCH[1]}"
+
+            [ "${_k,,}" = "verifysslcert" ] && [[ "${_v,,}" =~ ^(on|off)$ ]] &&
+                _verify_ssl_cert="${BASH_REMATCH[1]}"
+        fi
+    done
+
+    local _protect_data="on"
+    [ "${_force_ssl}" = "off" -a "${_allow_ssl}" = "off" ] &&
+        _protect_data="off"
+
+    cat <<CMD
+set ftp:passive-mode ${_passive_mode}
+set ftp:ssl-force ${_force_ssl}
+set ftp:ssl-allow ${_allow_ssl}
+set ftp:ssl-protect-data ${_protect_data}
+set ssl:verify-certificate ${_verify_ssl_cert}
+CMD
+
+    return ${EXITCODE_NO_ERROR}
+}
+
+
+generate_connect_command()
+{
+    local _user="${1}"
+    local _pass="${2}"
+    local _host="${3}"
+    local _port="${4}"
+
+    [ -z "${_user}" ] && return ${EXITCODE_ERROR}
+    [ -z "${_pass}" ] && return ${EXITCODE_ERROR}
+    [ -z "${_host}" ] && return ${EXITCODE_ERROR}
+    [ -z "${_port}" ] && return ${EXITCODE_ERROR}
+
+    cat <<CMD
+open -u ${_user},${_pass} -p ${_port} ${_host}
+CMD
+
+    return ${EXITCODE_NO_ERROR}
+}
+
+
+generate_disconnect_command()
+{
+    cat <<CMD
+close
+CMD
+
+    return ${EXITCODE_NO_ERROR}
+}
+
+
+generate_end_command()
+{
+    cat <<CMD
+quit
+CMD
+
+    return ${EXITCODE_NO_ERROR}
+}
+
+
+_generate_simple_command()
+{
+    local _command="${1}"
+
+    [ -z "${_command}" ] && return ${EXITCODE_ERROR}
+
+    cat <<CMD
+${1}
+CMD
+
+    return ${EXITCODE_NO_ERROR}
+}
+
+
+generate_list_remote_command()
+{
+    _generate_simple_command "ls"
+
+    return ${?}
+}
+
+
+_generate_file_command()
+{
+    local _c="${1}"; shift
+    local _s="${1}"; shift
+    local _d="${1}"; shift
+    local _o="${@}"
+
+    [[ "${_c,,}" =~ ^(get|put)$ ]] || return ${EXITCODE_ERROR}
+    [ -z "${_s}" ] && return ${EXITCODE_ERROR}
+    [ -z "${_d}" ] && return ${EXITCODE_ERROR}
+
+    cat <<CMD
+${_c,,} ${_s} -o ${_d} ${_o}
+CMD
+
+    return ${EXITCODE_NO_ERROR}
+}
+
+
+generate_get_command()
+{
+    _generate_file_command "get" "${1}" "${2}"
+
+    return ${?}
+}
+
+
+generate_put_command()
+{
+    _generate_file_command "put" "${1}" "${2}"
+
+    return $?
+}
+
+
+_generate_directory_command()
+{
+    local _s="${1}"; shift
+    local _d="${1}"; shift
+    local _o="${@}"
+
+    [ -z "${_s}" ] && return ${EXITCODE_ERROR}
+    [ -z "${_d}" ] && return ${EXITCODE_ERROR}
+
+    cat <<CMD
+mirror -a ${_o} --verbose=0 ${_s} ${_d}
+CMD
+
+    return ${EXITCODE_NO_ERROR}
+}
+
+
+generate_merge_local_command()
+{
+    _generate_directory_command "${1}" "${2}"
+
+    return ${?}
+}
+
+
+generate_merge_remote_command()
+{
+    _generate_directory_command "${1}" "${2}" "-R"
+
+    return ${?}
+}
+
+
+generate_mirror_local_command()
+{
+    #local _s_remote="${1}"
+    #local _d_local="${2}"
+
+    _generate_directory_command "${1}" "${2}" "-e"
+
+    return ${?}
+}
+
+
+generate_mirror_remote_command()
+{
+    #local _s_local="${1}"
+    #local _d_remote="${2}"
+
+    _generate_directory_command "${1}" "${2}" "-e -R"
+
+    return ${?}
+}
+
+
+
+# MAIN PROCESS
+[ ! check_bash_version ] &&
+    log_err_message "Bash version must be equal of more than 4." &&
+    exit_error
+
+[ ! check_binary ] &&
+    log_err_message "Required binary file is not found." &&
+    exit_error
+
+
+_desc_src=
+_desc_dst=
+_desc_mod=
+_desc_opt=
+
+while getopts s:d:m:o: OPT
+do
+    case "${OPT}" in
+    s)
+        _desc_src="${OPTARG}"
+        ;;
+    d)
+        _desc_dst="${OPTARG}"
+        ;;
+    m)
+        _desc_mod="${OPTARG}"
+        ;;
+    o)
+        _desc_opt="${OPTARG}${_desc_opt:+ }${_desc_opt}"
+        ;;
+    esac
+done
+
+#echo "SRC_DESC = ${_desc_src}"
+#echo "DST_DESC = ${_desc_dst}"
+#echo "OPT_DESC = ${_desc_opt}"
+#echo "MOD_DESC = ${_desc_mod}"
+
+
+_username=
+_password=
+_hostname=
+_portnum=
+_path_src=
+_path_dst=
+_remote_to_local=
+
+if [[ "${_desc_src}" =~ ^(([^@:]*)(:([^@]*))?@)?([^:]*):?([^:]*)?:(.*) ]]
+then
+    _username="${BASH_REMATCH[2]}"
+    _password="${BASH_REMATCH[4]}"
+    _hostname="${BASH_REMATCH[5]}"
+    _portnum="${BASH_REMATCH[6]}"
+    _path_src="${BASH_REMATCH[7]}"
+    _remote_to_local="true"
+    _path_dst="${_desc_dst}"
+elif [[ "${_desc_dst}" =~ ^(([^@:]*)(:([^@]*))?@)?([^:]*):?([^:]*)?:(.*) ]]
+then
+    _username="${BASH_REMATCH[2]}"
+    _password="${BASH_REMATCH[4]}"
+    _hostname="${BASH_REMATCH[5]}"
+    _portnum="${BASH_REMATCH[6]}"
+    _path_dst="${BASH_REMATCH[7]}"
+    _remote_to_local="false"
+    _path_src="${_desc_src}"
+fi
+
+#echo "USERNAME = ${_username}"
+#echo "PASSWORD = ${_password}"
+#echo "HOSTNAME = ${_hostname}"
+#echo "PORT_NUM = ${_portnum}"
+#echo "SRC_PATH = ${_path_src}"
+#echo "DST_PATH = ${_path_dst}"
+#echo "IS_R_2_L = ${_remote_to_local}"
+
+
+if [ -z "${_username}" ]
+then
+    _username=$(${__whoami})
+    log_info_message "Username is not specified, so current \"${_username}\" is used for login."
+else
+    log_info_message "Username \"${_username}\" is used for login."
+fi
+
+
+if [ -z "${_password}" ]
+then
+    log_err_message "Password is not specified." && exit_error
+fi
+
+
+if [ -z "${_hostname}" ]
+then
+    log_err_message "Hostname is not specified." && exit_error
+fi
+
+
+if [ -z "${_portnum}" ]
+then
+    log_info_message "Port number is not specified, so default is used."
+elif [[ ! "${_portnum}" =~ ^[0-9]{1,}$ ]]
+then
+    log_err_message "Specified port \"${_portnum}\" is not invalid." && exit_error
+else
+    log_info_message "Specified port \"${_portnum}\" is used."
+fi
+
+
+if [ "${_remote_to_local}" = "true" ]
+then
+    log_info_message "Source directory is \"${_hostname}:${_path_src}\"."
+    log_info_message "Destination directory is \"localhost:${_path_dst}\"."
+elif [ "${_remote_to_local}" = "false" ]
+then
+    log_info_message "Source directory is \"localhost:${_path_src}\"."
+    log_info_message "Destination directory is \"${_hostname}:${_path_dst}\"."
+else
+    log_err_message "Unknown error occured when parsing arguments."
+    exit_error
+fi
+
+
+_mode=
+if [[ "${_desc_mod,,}" =~ ^(copy|merge|mirror)$ ]]
+then
+    _mode="${BASH_REMATCH[1]}"
+    log_info_message "Mode is \"${_mode}.\""
+else
+    log_err_message "Mode \"${_mode}\" is invalid."
+    exit_error
+fi
+
+
+log_info_message "Operation is started."
+
+if (
+    generate_setting_command "${_desc_opt}"
+    generate_connect_command "${_username}" "${_password}" "${_hostname}" "${_portnum}"
+
+    case "${_mode}/${_remote_to_local}" in
+
+        "mirror/true")
+            generate_mirror_local_command "${_path_src}" "${_path_dst}"
+            ;;
+
+        "mirror/false")
+            generate_mirror_remote_command "${_path_src}" "${_path_dst}"
+            ;;
+
+        "merge/true")
+            generate_merge_local_command "${_path_src}" "${_path_dst}"
+            ;;
+
+        "merge/false")
+            generate_merge_remote_command "${_path_src}" "${_path_dst}"
+            ;;
+
+        "copy/true")
+            generate_get_command "${_path_src}" "${_path_dst}"
+            ;;
+
+        "copy/false")
+            generate_put_command "${_path_src}" "${_path_dst}"
+            ;;
+
+    esac
+
+    generate_disconnect_command
+    generate_end_command
+) | ${__lftp}
+then
+    log_info_message "Operation is finished with no error." && exit_no_error
+else
+    log_err_message "Operation is aborted with error(s)." && exit_error
+fi
+
