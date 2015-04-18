@@ -1,0 +1,57 @@
+[ -z "${___LOGGER-shh}" ] && return
+___LOGGER=
+
+
+
+### DEPENDENCY ###
+Include "../lib/datetime.shh"
+
+
+___logger_tag_error="ERR"
+___logger_tag_warning="WARN"
+___logger_tag_information="INFO"
+___logger_tag_debug="DEB"
+
+
+
+### DEFINITION ###
+Logger::Message()
+{
+    local _facility="$1:" ; shift
+    local _message="$@"
+    local _datetime="[$(Datetime::Current "-" " " ":")]"
+
+    echo "${_datetime}" "${_facility}" ${_message}
+    return $?
+}
+
+
+
+Logger::MessageInfo()
+{
+    local _message="$@"
+    
+    Logger::Message "${___logger_tag_information}" "${_message}"
+    return $?
+}
+
+
+
+Logger::MessageWarn()
+{
+    local _message="$@"
+
+    Logger::Message "${___logger_tag_warning}" "${_message}"
+    return $?
+}
+
+
+
+Logger::MessageErr()
+{
+    local _message="$@"
+
+    Logger::Message "${___logger_tag_error}" "${_message}"
+    return $?
+}
+

@@ -1,0 +1,45 @@
+[ -z "${___STDUTIL-shh}" ] && return
+___STDUTIL=
+
+
+
+### DEPENDENCY ###
+Include "../lib/std.shh"
+
+
+
+### DEFINITION ###
+IsInstalled()
+{
+    Std::IsDefined "${1}" && [ -x "${!1}" ] && return ${Std__RC_NO_ERROR}
+    return ${Std__RC_ERROR}
+}
+
+
+IsDirectory()
+{
+    Std::IsDefined "${1}" && [ -d "${!1}" ] && return ${Std__RC_NO_ERROR}
+    return ${Std__RC_ERROR}
+}
+
+
+IsSymlink()
+{
+    Std::IsDefined "${1}" && [ -L "${!1}" ] && return ${Std__RC_NO_ERROR}
+    return ${Std__RC_ERROR}
+}
+
+
+IsFile()
+{
+    Std::IsDefined "${1}" && [ -f "${!1}" ] && return ${Std__RC_NO_ERROR}
+    return ${Std__RC_ERROR}
+}
+
+
+IsExecutable()
+{
+    Std::IsDefined "${1}" && [ -x "${!1}" ] && return ${Std__RC_NO_ERROR}
+    return ${Std__RC_ERROR}
+}
+

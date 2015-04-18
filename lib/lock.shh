@@ -4,56 +4,51 @@ ___LOCK=
 
 
 ### DEPENDENCY ###
-Include "../lib/const.shh"
-Include "../lib/stdutil.shh"
+Include "../lib/std.shh"
 
-___lock_mkdir="/bin/mkdir"
-___lock_rmdir="/bin/rmdir"
-___lock_tmpdir="/tmp"
-___lock_path=
+___lock_bin_mkdir="/bin/mkdir"
+___lock_bin_rmdir="/bin/rmdir"
+___lock_dir_tmpdir="/tmp"
+___lock_path_object=
 
-IsInstalled ___lock_mkdir || Abort
-IsInstalled ___lock_rmdir || Abort
-IsDirectory ___lock_tmpdir || Abort
+Std::IsExecutableExisting ___lock_bin_mkdir || Std::Abort
+Std::IsExecutableExisting ___lock_bin_rmdir || Std::Abort
+Std::IsDirectoryExisting ___lock_dir_tmpdir || Std::Abort
 
 
 
 ### DEFINITION ###
-GetLock()
+Lock::Get()
 {
     local _name_lock="${1-$(basename ${0})}"
     
-    [ -n "${___lock_path}" ] && return ${RC_ERROR}
-    ___lock_path="${___lock_tmpdir}/${_name_lock}"
+    Std::IsDefined ___lock_path_object && return ${Std__RC_ERROR}
+    ___lock_path_object="${___lock_dir_tmpdir}/${_name_lock}"
 
-    if ${___lock_mkdir} "${___lock_path}" >/dev/null 2>&1
+    if ${___lock_bin_mkdir} "${___lock_path_object}" >/dev/null 2>&1
     then
-        return ${RC_NO_ERROR}
+        return ${Std__RC_NO_ERROR}
     fi
         
-    return ${RC_ERROR}
+    return ${Std__RC_ERROR}
 }
 
 
-ReleaseLock()
+Lock::Release()
 {
-    local _name_lock="${1-$(basename ${0})}"
-
-    [ -z "${___lock_path}" ] && return ${RC_ERROR}
-
-    if ${___lock_rmdir} "${___lock_path}" >/dev/null 2>&1
+    Std::IsDefined ___lock_path_object || return ${Std__RC_ERROR}
+    if ${___lock_bin_rmdir} "${___lock_path_object}" >/dev/null 2>&1
     then
-        ___lock_path=
-        return ${RC_NO_ERROR}
+        ___lock_path_object=
+        return ${Std__RC_NO_ERROR}
     fi
         
-    return ${RC_ERROR}
+    return ${Std__RC_ERROR}
 }
 
 
-CheckLocked()
+Lock::Check()
 {
-    IsDirectory ___lock_path
-    return $?
+    Std::IsDirectoryExisting ___lock_path_object
 }
 

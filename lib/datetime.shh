@@ -4,31 +4,36 @@ ___DATETIME=
 
 
 ### DEPENDENCY ###
-Include "../lib/stdfunc.shh"
+Include "../lib/std.shh"
 
-___datetime_date=/bin/date
-[ ! -x "${___datetime_date}" ] && Abort
+___datetime_bin_date=/bin/date
+[ ! -x "${___datetime_bin_date}" ] && Std::Abort
 
 
 
 ### DEFINITION ###
-GetDate()
+Datetime::CurrentDate()
 {
-    ${___datetime_date} +%Y%m%d
+    local _sep="${1}"
+    ${___datetime_bin_date} "+%Y${_sep}%m${_sep}%d"
     return $?
 }
 
 
-GetTime()
+Datetime::CurrentTime()
 {
-    ${___datetime_date} +%H%M%S
+    local _sep="${1}"
+    ${___datetime_bin_date} "+%H${_sep}%M${_sep}%S"
     return $?
 }
 
 
-GetDateTime()
+Datetime::Current()
 {
-    ${___datetime_date} +%Y%m%d-%H%M%S
+    local _sep_d="${1}"
+    local _sep_dt="${2}"
+    local _sep_t="${3}"
+    echo "$(Datetime::CurrentDate ${_sep_d})${_sep_dt}$(Datetime::CurrentTime ${_sep_t})"
     return $?
 }
 

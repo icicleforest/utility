@@ -8,23 +8,22 @@ Include()
 
 
 # INCLUDE DEPENDENCY
-Include "../lib/const.shh"
-Include "../lib/stdfunc.shh"
+Include "../lib/std.shh"
 Include "../lib/stdutil.shh"
 Include "../lib/configure.shh"
 
 
 
 # MAIN PROCESS
-GetConfigureOption || Abort
-SetConfigureOption && Abort
-GetConfigureOption || Abort
+GetConfigureOption || Std::Abort
+SetConfigureOption && Std::Abort
+GetConfigureOption || Std::Abort
 
-SetConfigureOption "--prefix=/test/test/test" || Abort
-GetConfigureOption || Abort
+SetConfigureOption "--prefix=/test/test/test" || Std::Abort
+GetConfigureOption || Std::Abort
 
-SetConfigureOption "-DTEST" || Abort
-GetConfigureOption || Abort
+SetConfigureOption "-DTEST" || Std::Abort
+GetConfigureOption || Std::Abort
 
 echo "Try to exec ./[cC]onfig*"
 if DoConfigure
@@ -45,6 +44,8 @@ else
     echo Configure NG
 fi
 
+echo "######"
+echo "Test OK"
 
 exit
 

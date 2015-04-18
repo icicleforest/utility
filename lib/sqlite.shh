@@ -1,0 +1,134 @@
+[ -z "${___SQLITE-shh}" ] && return
+___SQLITE=
+
+
+
+### DEPENDENCY ###
+Include "../lib/std.shh"
+
+
+___sqlite_bin_sqlite="/usr/bin/sqlite3"
+___sqlite_bin_cat="/bin/cat"
+
+Std::IsExecutableExisting ___sqlite_bin_sqlite || Std::Abort
+Std::IsExecutableExisting ___sqlite_bin_cat || Std::Abort
+
+___sqlite_path_database=
+
+___sqlite_result_records=
+___sqlite_result_index=0
+
+
+
+### DEFINITION ###
+Sqlite::CheckDatabaseFileExisting()
+{
+    local _name_file="${1}"
+
+    Std::IsDefined _name_file || return ${Std__RC_ERROR}
+    Std::IsFileExisting _name_file || return ${Std__RC_ERROR}
+    return ${Std__RC_NO_ERROR}
+}
+
+
+
+Sqlite::CreateDatabaseFile()
+{
+    local _name_file="${1}"
+    Std::IsDefined _name_file || return ${Std__RC_ERROR}
+
+    if ${___sqlite_bin_cat} /dev/null > "${_name_file}" 2>/dev/null
+    then
+        return ${Std__RC_NO_ERROR}
+    else
+        return ${Std__RC_ERROR}
+    fi
+}
+
+
+    
+Sqlite::SetDatabaseFile()
+{
+    local _name_file="${1}"
+    Std::IsFileExisting _name_file || return ${Std__RC_ERROR}
+
+    ___sqlite_path_database="${_name_file}"
+    return ${Std__RC_NO_ERROR}
+}
+
+
+
+Sqlite::UnsetDatabaseFile()
+{
+    Std::IsDefined ___sqlite_path_database || return ${Std__RC_ERROR}
+
+    ___sqlite_path_database=
+    return ${Std__RC_NO_ERROR}
+}
+
+
+
+Sqlite::ExecuteSQL()
+{
+    local _sql="${1}"
+
+    Std::IsFileExisting ___sqlite_path_database || return ${Std__RC_ERROR}
+    Std::IsDefined _sql || return ${Std__RC_ERROR}
+
+    ___sqlite_result_index=0
+    ___sqlite_result_records=()
+    
+    local _n=0
+    for _r in $(${___sqlite_bin_sqlite} "${___sqlite_path_database}" "${_sql}" 2>/dev/null)
+    do
+        ___sqlite_result_records[${_n}]="${_r}"
+        ((_n = _n + 1))
+    done
+
+    if [ "$?" = 0 ]
+    then
+        return ${Std__RC_NO_ERROR}
+    else
+        return ${Std__RC_ERROR}
+    fi
+}
+
+
+
+Sqlite::FetchResult()
+{
+    local _name_var="${1}"
+
+    Std::IsDefined ___sqlite_result_records || return ${Std__RC_ERROR}
+    [ "${___sqlite_result_index}" = "${#___sqlite_result_records[@]}" ] && return ${Std__RC_ERROR}
+
+    local _row=${___sqlite_result_records[${___sqlite_result_index}]}
+    ((___sqlite_result_index = ___sqlite_result_index + 1))
+
+    if Std::IsDefined _row 
+    then
+        local _old_ifs="${IFS}"; IFS="|"
+        local _n=0
+        for _field in ${_row}
+        do
+            _row[${_n}]="${_field}"
+            ((_n = _n + 1))
+        done
+        IFS="${_old_ifs}"
+
+        eval ${_name_var}=\("\${_row[@]}"\)
+        return ${Std__RC_NO_ERROR}
+    else
+        return ${Std__RC_ERROR}
+    fi
+}
+
+
+
+Sqlite::_GetDatabaseFile()
+{
+    Std::IsDefined ___sqlite_path_database || return ${Std__RC_ERROR}
+    echo "${___sqlite_path_database}"
+    return ${Std__RC_NO_ERROR}
+}
+
