@@ -1,0 +1,86 @@
+[ -z "${___MONITOR-shh}" ] && return
+___MONITOR=
+
+
+
+### DEPENDENCY ###
+Include "../lib/std.shh"
+
+___monitor_bin_getconf="/usr/bin/getconf"
+___monitor_bin_find="/bin/find"
+
+for _b in ${!___monitor_bin_@}
+do
+    Std::IsExecutableExisting "${_b}" || Std::Abort
+done
+
+
+___monitor_page_size=$(${___monitor_bin_getconf} PAGE_SIZE)
+___monitor_proc_path="/proc"
+
+
+
+### DEFINITION ###
+Monitor::Process::GetAllPids()
+{
+    local _pids=()
+
+    for _dir_proc in $(${___monitor_bin_find} "${___monitor_proc_path}" -maxdepth 1 -type d -name [0-9]*)
+    do
+        _pids=(${_pids[@]} ${_dir_proc##${___monitor_proc_path}/})
+    done
+
+    echo ${_pids[@]}
+    return ${Std__RC_NO_ERROR}
+}
+
+
+Monitor::Process::GetStat()
+{
+    local _pid=${1}
+    Std::IsDefined _pid || return ${Std__RC_ERROR}
+
+    local _stat=$(cat "${___monitor_proc_path}/${_pid}/stat" 2>/dev/null)
+    [ -z "${_stat}" ] && return ${Std__RC_ERROR}
+
+    echo "${_stat}"
+    return ${Std__RC_NO_ERROR}
+}
+
+
+Monitor::Process::GetUsedSwapSize()
+{
+    local _stat="${1}"
+    Std::IsDefined _stat || return ${Std__RC_ERROR}
+
+    # Now constructing
+    Std::Abort
+}
+
+
+Monitor::Process::GetUsedPhysicalMemorySize()
+{
+    local _stat="${1}"
+    Std::IsDefined _stat || return ${Std__RC_ERROR}
+
+    local _pp=$(echo "${_stat}" | ${awk} '{ print $23 }')
+    local _size_pm=0
+
+    ((_size_pm = _pp * ___monitor_page_size))
+
+    echo ${_size_pm}
+    return ${Std__RC_NO_ERROR}
+}
+
+
+Monitor::Process::GetUsedVirtualMemorySize()
+{
+    local _stat="${1}"
+    Std::IsDefined _stat || return ${Std__RC_ERROR}
+
+    local _size_vm=$(echo "${_stat}" | ${awk} '{ print $24 }')
+
+    echo ${_size_vm}
+    return ${Std__RC_NO_ERROR}
+}
+
