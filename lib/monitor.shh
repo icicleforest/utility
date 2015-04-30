@@ -1,0 +1,152 @@
+[ -z "${___MONITOR-shh}" ] && return
+___MONITOR=
+
+
+
+### DEPENDENCY ###
+Include "../lib/std.shh"
+
+___monitor_bin_getconf="/usr/bin/getconf"
+___monitor_bin_find="/bin/find"
+
+for _b in ${!___monitor_bin_@}
+do
+    Std::IsExecutableExisting "${_b}" || Std::Abort
+done
+
+
+___monitor_page_size=$(${___monitor_bin_getconf} PAGE_SIZE)
+___monitor_proc_path="/proc"
+
+
+
+### DEFINITION ###
+Monitor::Process::GetAllPids()
+{
+    local _pids=()
+
+    for _dir_proc in $(${___monitor_bin_find} "${___monitor_proc_path}" -maxdepth 1 -type d -name [0-9]*)
+    do
+        _pids=(${_pids[@]} ${_dir_proc##${___monitor_proc_path}/})
+    done
+
+    echo ${_pids[@]}
+    return ${Std__RC_NO_ERROR}
+}
+
+
+Monitor::Process::GetStat()
+{
+    local _pid=${1}
+    Std::IsDefined _pid || return ${Std__RC_ERROR}
+
+    local _stat=($(cat "${___monitor_proc_path}/${_pid}/stat" 2>/dev/null))
+    [ -z "${_stat}" ] && return ${Std__RC_ERROR}
+
+    echo "${_stat[@]}"
+    return ${Std__RC_NO_ERROR}
+}
+
+
+Monitor::Process::GetPidByStat()
+{
+    local _stat=(${@})
+    Std::IsDefined _stat || return ${Std__RC_ERROR}
+
+    echo ${_stat[0]}
+    return ${Std__RC_NO_ERROR}
+}
+
+
+Monitor::Process::GetParentPid()
+{
+    local _stat=(${@})
+    Std::IsDefined _stat || return ${Std__RC_ERROR}
+
+    echo ${_stat[3]}
+    return ${Std__RC_NO_ERROR}
+}
+
+
+Monitor::Process::GetTerminalGroupPid()
+{
+    local _stat=(${@})
+    Std::IsDefined _stat || return ${Std__RC_ERROR}
+
+    echo ${_stat[7]}
+    return ${Std__RC_NO_ERROR}
+}
+
+
+Monitor::Process::GetCommand()
+{
+    local _stat=(${@})
+    Std::IsDefined _stat || return ${Std__RC_ERROR}
+
+    echo ${_stat[1]}
+    return ${Std__RC_NO_ERROR}
+}
+
+
+Monitor::Process::GetUsedSwapSize()
+{
+    local _stat=(${@})
+    Std::IsDefined _stat || return ${Std__RC_ERROR}
+    Std::Abort
+
+# TODO
+    local _size_sw=0
+    for _line in $(cat /proc/${_stat[0]}/smaps)
+    do
+        if [[ ${_line,,} =~ ^swap ]]
+        then
+            local _d=$(echo ${_line} | ${awk} $2)
+            local _u=$(echo ${_line} | ${awk} $3)
+            echo "$_line"
+
+#        if [[ ${_line,,} =~ ^size\s*:\s*([0-9]+)\s*([kmg])b$ ]]
+#        then
+#            local _d=$BASH_REMATCH[0]
+#            local _u=$BASH_REMATCH[1]
+#
+#            case "$_u" in
+#                k) ((_d = _d * 1024)) ;;
+#                m) ((_d = _d * 1024 * 1024)) ;;
+#                g) ((_d = _d * 1024 * 1024 * 1024)) ;;
+#            esac
+#
+#            ((_size_sw = _size_sw + _d))
+        fi
+    done
+
+    echo ${_size_sw}
+    return ${Std__RC_NO_ERROR}
+}
+
+
+Monitor::Process::GetUsedPhysicalMemorySize()
+{
+    local _stat=(${@})
+    Std::IsDefined _stat || return ${Std__RC_ERROR}
+
+    local _pp=${_stat[23]}
+    local _size_pm=0
+
+    ((_size_pm = _pp * ___monitor_page_size))
+
+    echo ${_size_pm}
+    return ${Std__RC_NO_ERROR}
+}
+
+
+Monitor::Process::GetUsedVirtualMemorySize()
+{
+    local _stat=(${@})
+    Std::IsDefined _stat || return ${Std__RC_ERROR}
+
+    local _size_vm=${_stat[22]}
+
+    echo ${_size_vm}
+    return ${Std__RC_NO_ERROR}
+}
+

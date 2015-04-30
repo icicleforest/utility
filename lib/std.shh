@@ -13,6 +13,22 @@ Std__RC_ERROR=2
 Std__TRUE="true"
 Std__FALSE="false"
 
+# DEPENDENT BINARY
+___std_bin_cp="/bin/cp"
+___std_bin_mv="/bin/mv"
+___std_bin_rm="/bin/rm"
+___std_bin_awk="/bin/awk"
+___std_bin_grep="/bin/grep"
+___std_bin_egrep="/bin/egrep"
+___std_bin_find="/bin/find"
+
+for __ in ${!___std_bin_@}
+do
+    [ -x ${!__} ] || exit 255
+    ___="${__##___std_bin_}"
+    eval "${___}=${!__}"
+done
+
 
 
 ### DEFINITION ###
