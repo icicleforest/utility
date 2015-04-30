@@ -1,0 +1,133 @@
+[ -z "${___AUXILIARY-shh}" ] && return
+___AUXILIARY=
+
+
+
+### DEPENDENCY ###
+Include "../lib/std.shh"
+
+
+___auxiliary_path_file_output=""
+___auxiliary_path_file_input=""
+___auxiliary_path_directory_output=""
+___auxiliary_path_directory_input=""
+
+
+### DEFINITION ###
+Auxiliary::File::SetOutput()
+{
+    local _path="${1}"
+    Std::IsDefined _path || return ${Std__RC_ERROR}
+
+    ___auxiliary_path_file_output="${_path}"
+    return ${Std__RC_NO_ERROR}
+}
+
+
+Auxiliary::File::SetInput()
+{
+    local _path="${1}"
+    Std::IsDefined _path || return ${Std__RC_ERROR}
+
+    ___auxiliary_path_file_input="${_path}"
+    return ${Std__RC_NO_ERROR}
+}
+
+
+Auxiliary::Directory::SetOutput()
+{
+    local _path="${1}"
+    Std::IsDefined _path || return ${Std__RC_ERROR}
+
+    ___auxiliary_path_directory_output="${_path}"
+    return ${Std__RC_NO_ERROR}
+}
+
+
+Auxiliary::Directory::SetInput()
+{
+    local _path="${1}"
+    Std::IsDefined _path || return ${Std__RC_ERROR}
+
+    ___auxiliary_path_directory_input="${_path}"
+    return ${Std__RC_NO_ERROR}
+}
+
+
+Auxiliary::File::Apply()
+{
+    Std::IsDefined ___auxiliary_path_file_input || return ${Std__RC_ERROR}
+
+    _old_ifs="${IFS}"
+    IFS="="
+
+    while read _name _uga
+    do
+        local _own=$(echo "${_uga}" | cut -d ":" -f 1-2)
+        local _mod=$(echo "${_uga}" | cut -d ":" -f 3)
+
+        if [ -e "${_name}" ]
+        then
+            chown ${_own} ${_name}
+            chmod ${_mod} ${_name}
+        fi
+    done < "${___auxiliary_path_file_input}"
+
+    IFS="${_old_ifs}"
+    return ${Std__NO_ERROR}
+}
+
+
+Auxiliary::Directory::Apply()
+{
+    Std::IsDefined ___auxiliary_path_directory_input || return ${Std__RC_ERROR}
+
+    _old_ifs="${IFS}"
+    IFS="="
+
+    while read _name _uga
+    do
+        local _own=$(echo "${_uga}" | cut -d ":" -f 1-2)
+        local _mod=$(echo "${_uga}" | cut -d ":" -f 3)
+
+        if [ -d "${_name}" ]
+        then
+            chown ${_own} ${_name}
+            chmod ${_mod} ${_name}
+        fi
+    done < "${___auxiliary_path_directory_input}"
+
+    IFS="${_old_ifs}"
+    return ${Std__NO_ERROR}
+}
+
+
+Auxiliary::File::Load()
+{
+    Std::IsDefined ___auxiliary_path_file_output || return ${Std__RC_ERROR}
+
+    for _leaf in $(find ./ -type f)
+    do
+        local _name=${_leaf}
+        local _stat=$(stat "${_leaf}" -c "%u:%g:%a")
+        echo "${_name}=${_stat}"
+    done > "${___auxiliary_path_file_output}"
+
+    return ${Std__RC_NO_ERROR}
+}
+
+
+Auxiliary::Directory::Load()
+{
+    Std::IsDefined ___auxiliary_path_directory_output || return ${Std__RC_ERROR}
+
+    for _leaf in $(find ./ -type d)
+    do
+        local _name=${_leaf}
+        local _stat=$(stat "${_leaf}" -c "%u:%g:%a")
+        echo "${_name}=${_stat}"
+    done > "${___auxiliary_path_directory_output}"
+
+    return ${Std__RC_NO_ERROR}
+}
+

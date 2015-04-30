@@ -26,7 +26,6 @@ for __ in ${!___std_bin_@}
 do
     [ -x ${!__} ] || exit 255
     ___="${__##___std_bin_}"
-    echo ${___}
     eval "${___}=${!__}"
 done
 
